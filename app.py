@@ -453,6 +453,16 @@ def render_role(template_bytes, context):
     """Render a role using DocxTemplate."""
     try:
         tpl = DocxTemplate(io.BytesIO(template_bytes))
+        
+        # Debug: Print context keys and values
+        st.write("🔍 **Context for rendering:**")
+        st.write(f"Total context keys: {len(context)}")
+        st.write(f"Context keys: {list(context.keys())[:10]}...")  # Show first 10 keys
+        
+        # Check if context has any non-empty values
+        non_empty_values = {k: v for k, v in context.items() if v}
+        st.write(f"Non-empty values: {len(non_empty_values)}")
+        
         tpl.render(context)
         out = io.BytesIO()
         tpl.save(out)
@@ -460,6 +470,7 @@ def render_role(template_bytes, context):
         return out.read()
     except Exception as e:
         st.error(f"خطأ في عرض القالب: {e}")
+        st.write(f"Context that failed: {context}")
         return template_bytes
 
 def zip_many(named_bytes):
@@ -621,6 +632,14 @@ with st.container():
             placeholders = extract_placeholders_from_docx(template_bytes)
             schema = build_schema(placeholders)
             
+            # Debug: Show raw placeholders found
+            st.write("🔍 **Raw placeholders found:**")
+            st.write(f"Total placeholders: {len(placeholders)}")
+            if placeholders:
+                st.write("Placeholders:", list(placeholders)[:20])  # Show first 20
+            else:
+                st.warning("⚠️ No placeholders found! Make sure your template contains {{placeholder}} syntax")
+            
             st.markdown('<div class="schema-section">', unsafe_allow_html=True)
             st.markdown("#### 🔍 العناصر النائبة المكتشفة")
             
@@ -694,8 +713,12 @@ if template_file and src_file and 'schema' in st.session_state:
                         validation_results = {}
                         
                         for role_title, context in contexts.items():
+                            st.write(f"🔍 **Processing role: {role_title}**")
+                            st.write(f"Raw context keys: {list(context.keys())[:10]}...")
+                            
                             # Fit context to template bounds
                             fitted_context = fit_to_template_bounds(context, st.session_state.schema)
+                            st.write(f"Fitted context keys: {list(fitted_context.keys())[:10]}...")
                             
                             # Generate filled document using stored template bytes
                             filled_doc = render_role(
