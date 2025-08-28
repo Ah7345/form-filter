@@ -449,6 +449,168 @@ def fit_to_template_bounds(context, schema):
     # This is already handled in the parsing functions
     return context
 
+def create_template_with_placeholders():
+    """Create a template with all expected placeholders."""
+    doc = Document()
+    
+    # Add title
+    title = doc.add_heading("نموذج بطاقة الوصف المهني", 0)
+    title.alignment = 1  # Center alignment
+    
+    # Section 1: البيانات المرجعية للمهنة
+    doc.add_heading("1- البيانات المرجعية للمهنة", level=1)
+    ref_table = doc.add_table(rows=13, cols=2)
+    ref_table.style = 'Table Grid'
+    
+    # Header row
+    header_cells = ref_table.rows[0].cells
+    header_cells[0].text = "الحقل"
+    header_cells[1].text = "القيمة"
+    
+    # Reference data rows
+    ref_fields = [
+        "المجموعة الرئيسية", "رمز المجموعة الرئيسية", "المجموعة الفرعية", "رمز المجموعة الفرعية",
+        "المجموعة الثانوية", "رمز المجموعة الثانوية", "مجموعة الوحدات", "رمز الوحدات",
+        "المهنة", "رمز المهنة", "موقع العمل", "المرتبة"
+    ]
+    
+    for i, field in enumerate(ref_fields):
+        row_cells = ref_table.rows[i + 1].cells
+        row_cells[0].text = field
+        row_cells[1].text = "{{ref." + field.lower().replace(" ", "_").replace("رمز_", "code_") + "}}"
+    
+    # Section 2: الملخص العام
+    doc.add_heading("2- الملخص العام للمهنة", level=1)
+    summary_table = doc.add_table(rows=2, cols=2)
+    summary_table.style = 'Table Grid'
+    summary_table.rows[0].cells[0].text = "الملخص العام"
+    summary_table.rows[0].cells[1].text = "{{summary}}"
+    summary_table.rows[1].cells[0].text = "الوصف"
+    summary_table.rows[1].cells[1].text = "{{ref.job_description}}"
+    
+    # Section 3: قنوات التواصل
+    doc.add_heading("3- قنوات التواصل", level=1)
+    
+    # Internal communications
+    doc.add_heading("3.1- التواصل الداخلي", level=2)
+    comm_table = doc.add_table(rows=6, cols=2)
+    comm_table.style = 'Table Grid'
+    comm_table.rows[0].cells[0].text = "الجهة"
+    comm_table.rows[0].cells[1].text = "الغرض"
+    
+    for i in range(5):
+        row_cells = comm_table.rows[i + 1].cells
+        row_cells[0].text = "{{comm.internal[" + str(i) + "].entity}}"
+        row_cells[1].text = "{{comm.internal[" + str(i) + "].purpose}}"
+    
+    # External communications
+    doc.add_heading("3.2- التواصل الخارجي", level=2)
+    ext_comm_table = doc.add_table(rows=4, cols=2)
+    ext_comm_table.style = 'Table Grid'
+    ext_comm_table.rows[0].cells[0].text = "الجهة"
+    ext_comm_table.rows[0].cells[1].text = "الغرض"
+    
+    for i in range(3):
+        row_cells = ext_comm_table.rows[i + 1].cells
+        row_cells[0].text = "{{comm.external[" + str(i) + "].entity}}"
+        row_cells[1].text = "{{comm.external[" + str(i) + "].purpose}}"
+    
+    # Section 4: مستويات المهنة
+    doc.add_heading("4- مستويات المهنة القياسية", level=1)
+    levels_table = doc.add_table(rows=4, cols=4)
+    levels_table.style = 'Table Grid'
+    levels_table.rows[0].cells[0].text = "المستوى"
+    levels_table.rows[0].cells[1].text = "الرمز"
+    levels_table.rows[0].cells[2].text = "الدور"
+    levels_table.rows[0].cells[3].text = "التدرج"
+    
+    for i in range(3):
+        row_cells = levels_table.rows[i + 1].cells
+        row_cells[0].text = "{{levels[" + str(i) + "].level}}"
+        row_cells[0].text = "{{levels[" + str(i) + "].code}}"
+        row_cells[0].text = "{{levels[" + str(i) + "].role}}"
+        row_cells[0].text = "{{levels[" + str(i) + "].progression}}"
+    
+    # Section 5: الجدارات
+    doc.add_heading("5- الجدارات", level=1)
+    
+    # Core competencies
+    doc.add_heading("5.1- الجدارات الأساسية", level=2)
+    core_comp_table = doc.add_table(rows=6, cols=1)
+    core_comp_table.style = 'Table Grid'
+    core_comp_table.rows[0].cells[0].text = "الجدارة"
+    
+    for i in range(5):
+        core_comp_table.rows[i + 1].cells[0].text = "{{comp.core[" + str(i) + "]}}"
+    
+    # Leadership competencies
+    doc.add_heading("5.2- الجدارات القيادية", level=2)
+    lead_comp_table = doc.add_table(rows=6, cols=1)
+    lead_comp_table.style = 'Table Grid'
+    lead_comp_table.rows[0].cells[0].text = "الجدارة"
+    
+    for i in range(5):
+        lead_comp_table.rows[i + 1].cells[0].text = "{{comp.lead[" + str(i) + "]}}"
+    
+    # Technical competencies
+    doc.add_heading("5.3- الجدارات الفنية", level=2)
+    tech_comp_table = doc.add_table(rows=6, cols=1)
+    tech_comp_table.style = 'Table Grid'
+    tech_comp_table.rows[0].cells[0].text = "الجدارة"
+    
+    for i in range(5):
+        tech_comp_table.rows[i + 1].cells[0].text = "{{comp.tech[" + str(i) + "]}}"
+    
+    # Section 6: مؤشرات الأداء
+    doc.add_heading("6- مؤشرات الأداء", level=1)
+    kpi_table = doc.add_table(rows=5, cols=3)
+    kpi_table.style = 'Table Grid'
+    kpi_table.rows[0].cells[0].text = "الرقم"
+    kpi_table.rows[0].cells[1].text = "المؤشر"
+    kpi_table.rows[0].cells[2].text = "طريقة القياس"
+    
+    for i in range(4):
+        row_cells = kpi_table.rows[i + 1].cells
+        row_cells[0].text = str(i + 1)
+        row_cells[1].text = "{{kpis[" + str(i) + "].metric}}"
+        row_cells[2].text = "{{kpis[" + str(i) + "].measure}}"
+    
+    # Section 7: المهام
+    doc.add_heading("7- المهام", level=1)
+    
+    # Leadership tasks
+    doc.add_heading("7.1- المهام القيادية/الإشرافية", level=2)
+    lead_tasks_table = doc.add_table(rows=6, cols=1)
+    lead_tasks_table.style = 'Table Grid'
+    lead_tasks_table.rows[0].cells[0].text = "المهمة"
+    
+    for i in range(5):
+        lead_tasks_table.rows[i + 1].cells[0].text = "{{tasks.lead[" + str(i) + "]}}"
+    
+    # Specialized tasks
+    doc.add_heading("7.2- المهام التخصصية", level=2)
+    spec_tasks_table = doc.add_table(rows=6, cols=1)
+    spec_tasks_table.style = 'Table Grid'
+    spec_tasks_table.rows[0].cells[0].text = "المهمة"
+    
+    for i in range(5):
+        spec_tasks_table.rows[i + 1].cells[0].text = "{{tasks.spec[" + str(i) + "]}}"
+    
+    # Other tasks
+    doc.add_heading("7.3- مهام أخرى", level=2)
+    other_tasks_table = doc.add_table(rows=4, cols=1)
+    other_tasks_table.style = 'Table Grid'
+    other_tasks_table.rows[0].cells[0].text = "المهمة"
+    
+    for i in range(3):
+        other_tasks_table.rows[i + 1].cells[0].text = "{{tasks.other[" + str(i) + "]}}"
+    
+    # Save to bytes
+    out = io.BytesIO()
+    doc.save(out)
+    out.seek(0)
+    return out.read()
+
 def render_role(template_bytes, context):
     """Render a role using DocxTemplate."""
     try:
@@ -635,34 +797,80 @@ with st.container():
             # Debug: Show raw placeholders found
             st.write("🔍 **Raw placeholders found:**")
             st.write(f"Total placeholders: {len(placeholders)}")
+            
             if placeholders:
                 st.write("Placeholders:", list(placeholders)[:20])  # Show first 20
+                
+                st.markdown('<div class="schema-section">', unsafe_allow_html=True)
+                st.markdown("#### 🔍 العناصر النائبة المكتشفة")
+                
+                # Display scalars
+                if schema['scalars']:
+                    st.markdown("**الحقول البسيطة:**")
+                    for scalar in schema['scalars']:
+                        st.code(scalar, language=None)
+                
+                # Display arrays
+                if schema['arrays']:
+                    st.markdown("**المصفوفات:**")
+                    for base, data in schema['arrays'].items():
+                        indices_str = f"[{min(data['indices'])}..{max(data['indices'])}]"
+                        fields_str = "{" + ", ".join(data['fields']) + "}"
+                        st.code(f"{base}{indices_str}.{fields_str}", language=None)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Store schema and template bytes in session state
+                st.session_state.schema = schema
+                st.session_state.placeholders = placeholders
+                st.session_state.template_bytes = template_bytes
+                
             else:
-                st.warning("⚠️ No placeholders found! Make sure your template contains {{placeholder}} syntax")
-            
-            st.markdown('<div class="schema-section">', unsafe_allow_html=True)
-            st.markdown("#### 🔍 العناصر النائبة المكتشفة")
-            
-            # Display scalars
-            if schema['scalars']:
-                st.markdown("**الحقول البسيطة:**")
-                for scalar in schema['scalars']:
-                    st.code(scalar, language=None)
-            
-            # Display arrays
-            if schema['arrays']:
-                st.markdown("**المصفوفات:**")
-                for base, data in schema['arrays'].items():
-                    indices_str = f"[{min(data['indices'])}..{max(data['indices'])}]"
-                    fields_str = "{" + ", ".join(data['fields']) + "}"
-                    st.code(f"{base}{indices_str}.{fields_str}", language=None)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Store schema and template bytes in session state
-            st.session_state.schema = schema
-            st.session_state.placeholders = placeholders
-            st.session_state.template_bytes = template_bytes
+                st.warning("⚠️ لا توجد عناصر نائبة في القالب المرفوع")
+                st.info("🎯 سأقوم بإنشاء قالب تلقائياً مع جميع العناصر النائبة المطلوبة")
+                
+                # Generate template with placeholders
+                with st.spinner("جاري إنشاء قالب مع العناصر النائبة..."):
+                    generated_template = create_template_with_placeholders()
+                    
+                    # Extract placeholders from generated template
+                    placeholders = extract_placeholders_from_docx(generated_template)
+                    schema = build_schema(placeholders)
+                    
+                    st.success("✅ تم إنشاء قالب تلقائياً مع جميع العناصر النائبة!")
+                    
+                    # Show generated template info
+                    st.markdown('<div class="schema-section">', unsafe_allow_html=True)
+                    st.markdown("#### 🔍 العناصر النائبة في القالب المُنشأ")
+                    
+                    # Display scalars
+                    if schema['scalars']:
+                        st.markdown("**الحقول البسيطة:**")
+                        for scalar in schema['scalars']:
+                            st.code(scalar, language=None)
+                    
+                    # Display arrays
+                    if schema['arrays']:
+                        st.markdown("**المصفوفات:**")
+                        for base, data in schema['arrays'].items():
+                            indices_str = f"[{min(data['indices'])}..{max(data['indices'])}]"
+                            fields_str = "{" + ", ".join(data['fields']) + "}"
+                            st.code(f"{base}{indices_str}.{fields_str}", language=None)
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # Store generated template in session state
+                    st.session_state.schema = schema
+                    st.session_state.placeholders = placeholders
+                    st.session_state.template_bytes = generated_template
+                    
+                    # Offer download of generated template
+                    st.download_button(
+                        label="📥 تحميل القالب المُنشأ مع العناصر النائبة",
+                        data=generated_template,
+                        file_name="قالب_مع_العناصر_النائبة.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -682,7 +890,7 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Processing and download section
-if template_file and src_file and 'schema' in st.session_state:
+if src_file and 'schema' in st.session_state:
     with st.container():
         st.markdown('<div class="download-section">', unsafe_allow_html=True)
         st.markdown("### 🚀 معالجة البيانات")
