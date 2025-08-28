@@ -135,7 +135,7 @@ def build_schema(holders):
     }
 
 def parse_source_to_contexts(src_bytes, schema):
-    """Parse source DOCX into contexts for each role."""
+    """Smart parser that extracts data from the actual source format."""
     try:
         doc = Document(io.BytesIO(src_bytes))
         contexts = {}
@@ -149,114 +149,289 @@ def parse_source_to_contexts(src_bytes, schema):
         # Join all text for processing
         full_text = "\n".join(all_text)
         
-        # Create context that matches EXACTLY with the template placeholders
-        context = {
-            # Reference data - EXACT placeholder names from template
-            "ref.المجموعة_الرئيسية": "مجموعة رئيسية",
-            "ref.code_المجموعة_الرئيسية": "MR001",
-            "ref.المجموعة_الفرعية": "مجموعة فرعية",
-            "ref.code_المجموعة_الفرعية": "MF001",
-            "ref.المجموعة_الثانوية": "مجموعة ثانوية",
-            "ref.code_المجموعة_الثانوية": "MT001",
-            "ref.مجموعة_الوحدات": "مجموعة وحدات",
-            "ref.code_الوحدات": "MU001",
-            "ref.المهنة": "مهنة",
-            "ref.code_المهنة": "JOB001",
-            "ref.موقع_العمل": "موقع العمل",
-            "ref.المرتبة": "مرتبة",
-            
-            # Summary section
-            "summary": "ملخص عام للمهنة",
-            "ref.job_description": "وصف تفصيلي للمهنة",
-            
-            # Communication channels - EXACT placeholder names
-            "comm.internal[0].entity": "إدارة داخلية 1",
-            "comm.internal[0].purpose": "غرض داخلي 1",
-            "comm.internal[1].entity": "إدارة داخلية 2",
-            "comm.internal[1].purpose": "غرض داخلي 2",
-            "comm.internal[2].entity": "إدارة داخلية 3",
-            "comm.internal[2].purpose": "غرض داخلي 3",
-            "comm.internal[3].entity": "إدارة داخلية 4",
-            "comm.internal[3].purpose": "غرض داخلي 4",
-            "comm.internal[4].entity": "إدارة داخلية 5",
-            "comm.internal[4].purpose": "غرض داخلي 5",
-            
-            "comm.external[0].entity": "جهة خارجية 1",
-            "comm.external[0].purpose": "غرض خارجي 1",
-            "comm.external[1].entity": "جهة خارجية 2",
-            "comm.external[1].purpose": "غرض خارجي 2",
-            "comm.external[2].entity": "جهة خارجية 3",
-            "comm.external[2].purpose": "غرض خارجي 3",
-            
-            # Levels - EXACT placeholder names
-            "levels[0].level": "مستوى 1",
-            "levels[0].code": "L1",
-            "levels[0].role": "دور 1",
-            "levels[0].progression": "تدرج 1",
-            "levels[1].level": "مستوى 2",
-            "levels[1].code": "L2",
-            "levels[1].role": "دور 2",
-            "levels[1].progression": "تدرج 2",
-            "levels[2].level": "مستوى 3",
-            "levels[2].code": "L3",
-            "levels[2].role": "دور 3",
-            "levels[2].progression": "تدرج 3",
-            
-            # Competencies - EXACT placeholder names
-            "comp.core[0]": "جدارة أساسية 1",
-            "comp.core[1]": "جدارة أساسية 2",
-            "comp.core[2]": "جدارة أساسية 3",
-            "comp.core[3]": "جدارة أساسية 4",
-            "comp.core[4]": "جدارة أساسية 5",
-            
-            "comp.lead[0]": "جدارة قيادية 1",
-            "comp.lead[1]": "جدارة قيادية 2",
-            "comp.lead[2]": "جدارة قيادية 3",
-            "comp.lead[3]": "جدارة قيادية 4",
-            "comp.lead[4]": "جدارة قيادية 5",
-            
-            "comp.tech[0]": "جدارة فنية 1",
-            "comp.tech[1]": "جدارة فنية 2",
-            "comp.tech[2]": "جدارة فنية 3",
-            "comp.tech[3]": "جدارة فنية 4",
-            "comp.tech[4]": "جدارة فنية 5",
-            
-            # KPIs - EXACT placeholder names
-            "kpis[0].metric": "مؤشر 1",
-            "kpis[0].measure": "طريقة قياس 1",
-            "kpis[1].metric": "مؤشر 2",
-            "kpis[1].measure": "طريقة قياس 2",
-            "kpis[2].metric": "مؤشر 3",
-            "kpis[2].measure": "طريقة قياس 3",
-            "kpis[3].metric": "مؤشر 4",
-            "kpis[3].measure": "طريقة قياس 4",
-            
-            # Tasks - EXACT placeholder names
-            "tasks.lead[0]": "مهمة قيادية 1",
-            "tasks.lead[1]": "مهمة قيادية 2",
-            "tasks.lead[2]": "مهمة قيادية 3",
-            "tasks.lead[3]": "مهمة قيادية 4",
-            "tasks.lead[4]": "مهمة قيادية 5",
-            
-            "tasks.spec[0]": "مهمة تخصصية 1",
-            "tasks.spec[1]": "مهمة تخصصية 2",
-            "tasks.spec[2]": "مهمة تخصصية 3",
-            "tasks.spec[3]": "مهمة تخصصية 4",
-            "tasks.spec[4]": "مهمة تخصصية 5",
-            
-            "tasks.other[0]": "مهمة أخرى 1",
-            "tasks.other[1]": "مهمة أخرى 2",
-            "tasks.other[2]": "مهمة أخرى 3"
-        }
+        # Split into job sections using smart patterns
+        job_sections = split_into_job_sections(full_text)
         
-        # Create a simple context for demonstration
-        contexts["وظيفة تجريبية"] = context
+        for job_title, job_content in job_sections.items():
+            context = parse_job_content(job_content)
+            contexts[job_title] = context
         
         return contexts
         
     except Exception as e:
         st.error(f"خطأ في تحليل ملف المصدر: {e}")
         return {}
+
+def split_into_job_sections(full_text):
+    """Split the source text into individual job sections."""
+    # Look for job titles (lines that start with job titles)
+    lines = full_text.split('\n')
+    job_sections = {}
+    current_job = ""
+    current_content = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        # Check if this is a new job title
+        if is_job_title(line):
+            # Save previous job if exists
+            if current_job and current_content:
+                job_sections[current_job] = '\n'.join(current_content)
+            
+            # Start new job
+            current_job = line
+            current_content = [line]
+        else:
+            # Add line to current job
+            current_content.append(line)
+    
+    # Add the last job
+    if current_job and current_content:
+        job_sections[current_job] = '\n'.join(current_content)
+    
+    return job_sections
+
+def is_job_title(line):
+    """Check if a line is a job title."""
+    # Job titles typically start with specific patterns
+    job_patterns = [
+        'رئيس', 'مدير', 'مشرف', 'موظف', 'مهندس', 'محلل', 'مطور', 
+        'مصمم', 'محاسب', 'محامي', 'طبيب', 'معلم', 'مدرس'
+    ]
+    
+    return any(line.startswith(pattern) for pattern in job_patterns)
+
+def parse_job_content(job_content):
+    """Parse individual job content into structured context."""
+    context = {}
+    
+    # Parse reference data
+    context.update(parse_reference_data(job_content))
+    
+    # Parse summary
+    context.update(parse_summary(job_content))
+    
+    # Parse communication channels
+    context.update(parse_communication(job_content))
+    
+    # Parse levels
+    context.update(parse_levels(job_content))
+    
+    # Parse competencies
+    context.update(parse_competencies(job_content))
+    
+    # Parse KPIs
+    context.update(parse_kpis(job_content))
+    
+    # Parse tasks
+    context.update(parse_tasks(job_content))
+    
+    return context
+
+def parse_reference_data(content):
+    """Extract reference data from job content."""
+    ref_data = {}
+    
+    # Look for reference data patterns
+    patterns = {
+        r'المجموعة الرئيسية:\s*([^•\n]+)': 'ref.المجموعة_الرئيسية',
+        r'المجموعة الفرعية:\s*([^•\n]+)': 'ref.المجموعة_الفرعية',
+        r'المجموعة الثانوية:\s*([^•\n]+)': 'ref.المجموعة_الثانوية',
+        r'مجموعة الوحدات:\s*([^•\n]+)': 'ref.مجموعة_الوحدات',
+        r'رمز المهنة[^:]*:\s*([^•\n]+)': 'ref.رمز_المهنة',
+        r'المرتبة[^:]*:\s*([^•\n]+)': 'ref.المرتبة',
+        r'موقع العمل:\s*([^•\n]+)': 'ref.موقع_العمل'
+    }
+    
+    for pattern, key in patterns.items():
+        match = re.search(pattern, content)
+        if match:
+            ref_data[key] = match.group(1).strip()
+    
+    # Extract job title
+    job_match = re.search(r'^([^•\n]+)', content)
+    if job_match:
+        ref_data['ref.المهنة'] = job_match.group(1).strip()
+    
+    return ref_data
+
+def parse_summary(content):
+    """Extract job summary."""
+    summary = {}
+    
+    # Look for summary section
+    summary_match = re.search(r'الملخص العام[^:]*:\s*([^•\n]+)', content)
+    if summary_match:
+        summary['summary'] = summary_match.group(1).strip()
+    
+    return summary
+
+def parse_communication(content):
+    """Extract communication channels."""
+    comm = {'internal': [], 'external': []}
+    
+    # Parse internal communications
+    internal_section = re.search(r'الجهات الداخلية:\s*([^•\n]+)', content)
+    if internal_section:
+        entities = internal_section.group(1).split('،')
+        for i, entity in enumerate(entities[:5]):  # Max 5 internal
+            comm['internal'].append({
+                'entity': entity.strip(),
+                'purpose': 'مواءمة الاحتياج التدريبي'  # Default purpose
+            })
+    
+    # Parse external communications
+    external_section = re.search(r'الجهات الخارجية:\s*([^•\n]+)', content)
+    if external_section:
+        entities = external_section.group(1).split('،')
+        for i, entity in enumerate(entities[:3]):  # Max 3 external
+            comm['external'].append({
+                'entity': entity.strip(),
+                'purpose': 'التعاقد والاعتماد'  # Default purpose
+            })
+    
+    # Convert to flat structure for template
+    flat_comm = {}
+    for i, internal in enumerate(comm['internal']):
+        flat_comm[f'comm.internal[{i}].entity'] = internal['entity']
+        flat_comm[f'comm.internal[{i}].purpose'] = internal['purpose']
+    
+    for i, external in enumerate(comm['external']):
+        flat_comm[f'comm.external[{i}].entity'] = external['entity']
+        flat_comm[f'comm.external[{i}].purpose'] = external['purpose']
+    
+    return flat_comm
+
+def parse_levels(content):
+    """Extract job levels."""
+    levels = {}
+    
+    # Look for level information
+    level_match = re.search(r'مستوى المهنة:\s*([^•\n]+)', content)
+    code_match = re.search(r'رمز المستوى:\s*([^•\n]+)', content)
+    role_match = re.search(r'الدور المهني:\s*([^•\n]+)', content)
+    progression_match = re.search(r'الترتيب المهني:\s*([^•\n]+)', content)
+    
+    if level_match:
+        levels['levels[0].level'] = level_match.group(1).strip()
+    if code_match:
+        levels['levels[0].code'] = code_match.group(1).strip()
+    if role_match:
+        levels['levels[0].role'] = role_match.group(1).strip()
+    if progression_match:
+        levels['levels[0].progression'] = progression_match.group(1).strip()
+    
+    return levels
+
+def parse_competencies(content):
+    """Extract competencies with levels."""
+    comp = {}
+    
+    # Parse core competencies
+    core_match = re.search(r'الجدارات الأساسية[^:]*:\s*([^•\n]+)', content)
+    if core_match:
+        core_text = core_match.group(1)
+        competencies = parse_competency_list(core_text)
+        for i, comp_data in enumerate(competencies[:5]):
+            comp[f'comp.core[{i}].name'] = comp_data['name']
+            comp[f'comp.core[{i}].level'] = comp_data['level']
+    
+    # Parse leadership competencies
+    lead_match = re.search(r'الجدارات القيادية:\s*([^•\n]+)', content)
+    if lead_match:
+        lead_text = lead_match.group(1)
+        competencies = parse_competency_list(lead_text)
+        for i, comp_data in enumerate(competencies[:5]):
+            comp[f'comp.lead[{i}].name'] = comp_data['name']
+            comp[f'comp.lead[{i}].level'] = comp_data['level']
+    
+    # Parse technical competencies
+    tech_match = re.search(r'الجدارات الفنية:\s*([^•\n]+)', content)
+    if tech_match:
+        tech_text = tech_match.group(1)
+        competencies = parse_competency_list(tech_text)
+        for i, comp_data in enumerate(competencies[:5]):
+            comp[f'comp.tech[{i}].name'] = comp_data['name']
+            comp[f'comp.tech[{i}].level'] = comp_data['level']
+    
+    # Behavioral competencies (same as core for now)
+    for i in range(5):
+        if f'comp.core[{i}].name' in comp:
+            comp[f'comp.behavioral[{i}].name'] = comp[f'comp.core[{i}].name']
+            comp[f'comp.behavioral[{i}].level'] = comp[f'comp.core[{i}].level']
+    
+    return comp
+
+def parse_competency_list(text):
+    """Parse competency text into structured format."""
+    competencies = []
+    
+    # Split by semicolon and parse each competency
+    parts = text.split('؛')
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        
+        # Look for competency name and level
+        match = re.search(r'([^(]+)\((\d+)\)', part)
+        if match:
+            competencies.append({
+                'name': match.group(1).strip(),
+                'level': match.group(2).strip()
+            })
+        else:
+            # No level specified, use default
+            competencies.append({
+                'name': part.strip(),
+                'level': '3'  # Default level
+            })
+    
+    return competencies
+
+def parse_kpis(content):
+    """Extract KPIs."""
+    kpis = {}
+    
+    # Look for KPI section
+    kpi_section = re.search(r'إدارة الأداء المهني[^:]*:\s*([^•\n]+)', content)
+    if kpi_section:
+        kpi_text = kpi_section.group(1)
+        
+        # Parse individual KPIs
+        kpi_parts = kpi_text.split('•')
+        for i, part in enumerate(kpi_parts[:4]):  # Max 4 KPIs
+            if ':' in part:
+                metric, measure = part.split(':', 1)
+                kpis[f'kpis[{i}].metric'] = metric.strip()
+                kpis[f'kpis[{i}].measure'] = measure.strip()
+    
+    return kpis
+
+def parse_tasks(content):
+    """Extract tasks."""
+    tasks = {}
+    
+    # Parse leadership tasks
+    lead_match = re.search(r'قيادية/إشرافية:\s*([^•\n]+)', content)
+    if lead_match:
+        lead_text = lead_match.group(1)
+        task_list = lead_text.split('،')
+        for i, task in enumerate(task_list[:5]):
+            tasks[f'tasks.lead[{i}]'] = task.strip()
+    
+    # Parse specialized tasks
+    spec_match = re.search(r'تخصصية:\s*([^•\n]+)', content)
+    if spec_match:
+        spec_text = spec_match.group(1)
+        task_list = spec_text.split('،')
+        for i, task in enumerate(task_list[:5]):
+            tasks[f'tasks.spec[{i}]'] = task.strip()
+    
+    return tasks
 
 def slice_roles_from_source(source_text):
     """Extract role blocks from source text using flexible patterns."""
@@ -544,88 +719,73 @@ def fit_to_template_bounds(context, schema):
     return context
 
 def create_template_with_placeholders():
-    """Create a template with all expected placeholders."""
+    """Create a template that matches the actual structure provided by the user."""
     doc = Document()
     
     # Add title
-    title = doc.add_heading("نموذج بطاقة الوصف المهني", 0)
+    title = doc.add_heading("أ‌- نموذج بطاقة الوصف المهني", 0)
     title.alignment = 1  # Center alignment
     
     # Section 1: البيانات المرجعية للمهنة
     doc.add_heading("1- البيانات المرجعية للمهنة", level=1)
-    ref_table = doc.add_table(rows=13, cols=2)
+    ref_table = doc.add_table(rows=7, cols=2)
     ref_table.style = 'Table Grid'
     
-    # Header row
-    header_cells = ref_table.rows[0].cells
-    header_cells[0].text = "الحقل"
-    header_cells[1].text = "القيمة"
-    
-    # Reference data rows - exactly as shown in the example
+    # Reference data rows - matching the actual template structure
     ref_data = [
         ("المجموعة الرئيسية", "{{ref.المجموعة_الرئيسية}}"),
-        ("رمز المجموعة الرئيسية", "{{ref.code_المجموعة_الرئيسية}}"),
         ("المجموعة الفرعية", "{{ref.المجموعة_الفرعية}}"),
-        ("رمز المجموعة الفرعية", "{{ref.code_المجموعة_الفرعية}}"),
         ("المجموعة الثانوية", "{{ref.المجموعة_الثانوية}}"),
-        ("رمز المجموعة الثانوية", "{{ref.code_المجموعة_الثانوية}}"),
         ("مجموعة الوحدات", "{{ref.مجموعة_الوحدات}}"),
-        ("رمز الوحدات", "{{ref.code_الوحدات}}"),
         ("المهنة", "{{ref.المهنة}}"),
-        ("رمز المهنة", "{{ref.code_المهنة}}"),
         ("موقع العمل", "{{ref.موقع_العمل}}"),
         ("المرتبة", "{{ref.المرتبة}}")
     ]
     
     for i, (field, placeholder) in enumerate(ref_data):
-        row_cells = ref_table.rows[i + 1].cells
+        row_cells = ref_table.rows[i].cells
         row_cells[0].text = field
         row_cells[1].text = placeholder
     
     # Section 2: الملخص العام
     doc.add_heading("2- الملخص العام للمهنة", level=1)
-    summary_table = doc.add_table(rows=2, cols=2)
-    summary_table.style = 'Table Grid'
-    summary_table.rows[0].cells[0].text = "الملخص العام"
-    summary_table.rows[0].cells[1].text = "{{summary}}"
-    summary_table.rows[1].cells[0].text = "الوصف"
-    summary_table.rows[1].cells[1].text = "{{ref.job_description}}"
+    doc.add_paragraph("{{summary}}")
     
     # Section 3: قنوات التواصل
     doc.add_heading("3- قنوات التواصل", level=1)
     
     # Internal communications
-    doc.add_heading("3.1- التواصل الداخلي", level=2)
-    comm_table = doc.add_table(rows=6, cols=2)
-    comm_table.style = 'Table Grid'
-    comm_table.rows[0].cells[0].text = "الجهة"
-    comm_table.rows[0].cells[1].text = "الغرض"
+    doc.add_paragraph("جهات التواصل الداخلية")
+    internal_table = doc.add_table(rows=6, cols=2)
+    internal_table.style = 'Table Grid'
+    internal_table.rows[0].cells[0].text = "الجهة"
+    internal_table.rows[0].cells[1].text = "الغرض من التواصل"
     
     for i in range(5):
-        row_cells = comm_table.rows[i + 1].cells
+        row_cells = internal_table.rows[i + 1].cells
         row_cells[0].text = "{{comm.internal[" + str(i) + "].entity}}"
         row_cells[1].text = "{{comm.internal[" + str(i) + "].purpose}}"
     
     # External communications
-    doc.add_heading("3.2- التواصل الخارجي", level=2)
-    ext_comm_table = doc.add_table(rows=4, cols=2)
-    ext_comm_table.style = 'Table Grid'
-    ext_comm_table.rows[0].cells[0].text = "الجهة"
-    ext_comm_table.rows[0].cells[1].text = "الغرض"
+    doc.add_paragraph("جهات التواصل الخارجية")
+    external_table = doc.add_table(rows=4, cols=2)
+    external_table.style = 'Table Grid'
+    external_table.rows[0].cells[0].text = "الجهة"
+    external_table.rows[0].cells[1].text = "الغرض من التواصل"
     
     for i in range(3):
-        row_cells = ext_comm_table.rows[i + 1].cells
+        row_cells = external_table.rows[i + 1].cells
         row_cells[0].text = "{{comm.external[" + str(i) + "].entity}}"
         row_cells[1].text = "{{comm.external[" + str(i) + "].purpose}}"
     
-    # Section 4: مستويات المهنة
+    # Section 4: مستويات المهنة القياسية
     doc.add_heading("4- مستويات المهنة القياسية", level=1)
     levels_table = doc.add_table(rows=4, cols=4)
     levels_table.style = 'Table Grid'
-    levels_table.rows[0].cells[0].text = "المستوى"
-    levels_table.rows[0].cells[1].text = "الرمز"
-    levels_table.rows[0].cells[2].text = "الدور"
-    levels_table.rows[0].cells[3].text = "التدرج"
+    levels_table.rows[0].cells[0].text = "مستوى المهنة القياسي"
+    levels_table.rows[0].cells[1].text = "رمز المستوى المهني"
+    levels_table.rows[0].cells[2].text = "الدور المهني"
+    levels_table.rows[0].cells[3].text = "التدرج المهني (المرتبة)"
     
     for i in range(3):
         row_cells = levels_table.rows[i + 1].cells
@@ -637,52 +797,62 @@ def create_template_with_placeholders():
     # Section 5: الجدارات
     doc.add_heading("5- الجدارات", level=1)
     
-    # Core competencies
-    doc.add_heading("5.1- الجدارات الأساسية", level=2)
-    core_comp_table = doc.add_table(rows=6, cols=1)
-    core_comp_table.style = 'Table Grid'
-    core_comp_table.rows[0].cells[0].text = "الجدارة"
+    # Behavioral competencies
+    doc.add_paragraph("الجدارات السلوكية")
+    behavioral_table = doc.add_table(rows=6, cols=2)
+    behavioral_table.style = 'Table Grid'
+    behavioral_table.rows[0].cells[0].text = "الجدارة"
+    behavioral_table.rows[0].cells[1].text = "مستوى الإتقان"
     
     for i in range(5):
-        core_comp_table.rows[i + 1].cells[0].text = "{{comp.core[" + str(i) + "]}}"
+        row_cells = behavioral_table.rows[i + 1].cells
+        row_cells[0].text = "{{comp.behavioral[" + str(i) + "].name}}"
+        row_cells[1].text = "{{comp.behavioral[" + str(i) + "].level}}"
+    
+    # Core competencies
+    doc.add_paragraph("الجدارات الأساسية")
+    core_table = doc.add_table(rows=6, cols=2)
+    core_table.style = 'Table Grid'
+    core_table.rows[0].cells[0].text = "الجدارة"
+    core_table.rows[0].cells[1].text = "مستوى الإتقان"
+    
+    for i in range(5):
+        row_cells = core_table.rows[i + 1].cells
+        row_cells[0].text = "{{comp.core[" + str(i) + "].name}}"
+        row_cells[1].text = "{{comp.core[" + str(i) + "].level}}"
     
     # Leadership competencies
-    doc.add_heading("5.2- الجدارات القيادية", level=2)
-    lead_comp_table = doc.add_table(rows=6, cols=1)
-    lead_comp_table.style = 'Table Grid'
-    lead_comp_table.rows[0].cells[0].text = "الجدارة"
+    doc.add_paragraph("الجدارات القيادية")
+    lead_table = doc.add_table(rows=6, cols=2)
+    lead_table.style = 'Table Grid'
+    lead_table.rows[0].cells[0].text = "الجدارة"
+    lead_table.rows[0].cells[1].text = "مستوى الإتقان"
     
     for i in range(5):
-        lead_comp_table.rows[i + 1].cells[0].text = "{{comp.lead[" + str(i) + "]}}"
+        row_cells = lead_table.rows[i + 1].cells
+        row_cells[0].text = "{{comp.lead[" + str(i) + "].name}}"
+        row_cells[1].text = "{{comp.lead[" + str(i) + "].level}}"
     
     # Technical competencies
-    doc.add_heading("5.3- الجدارات الفنية", level=2)
-    tech_comp_table = doc.add_table(rows=6, cols=1)
-    tech_comp_table.style = 'Table Grid'
-    tech_comp_table.rows[0].cells[0].text = "الجدارة"
+    doc.add_paragraph("الجدارات الفنية")
+    tech_table = doc.add_table(rows=6, cols=2)
+    tech_table.style = 'Table Grid'
+    tech_table.rows[0].cells[0].text = "الجدارة"
+    tech_table.rows[0].cells[1].text = "مستوى الإتقان"
     
     for i in range(5):
-        tech_comp_table.rows[i + 1].cells[0].text = "{{comp.tech[" + str(i) + "]}}"
+        row_cells = tech_table.rows[i + 1].cells
+        row_cells[0].text = "{{comp.tech[" + str(i) + "].name}}"
+        row_cells[1].text = "{{comp.tech[" + str(i) + "].level}}"
     
-    # Section 6: مؤشرات الأداء
-    doc.add_heading("6- مؤشرات الأداء", level=1)
-    kpi_table = doc.add_table(rows=5, cols=3)
-    kpi_table.style = 'Table Grid'
-    kpi_table.rows[0].cells[0].text = "الرقم"
-    kpi_table.rows[0].cells[1].text = "المؤشر"
-    kpi_table.rows[0].cells[2].text = "طريقة القياس"
+    # Section B: نموذج الوصف الفعلي
+    doc.add_heading("ب‌- نموذج الوصف الفعلي", level=1)
     
-    for i in range(4):
-        row_cells = kpi_table.rows[i + 1].cells
-        row_cells[0].text = str(i + 1)
-        row_cells[1].text = "{{kpis[" + str(i) + "].metric}}"
-        row_cells[2].text = "{{kpis[" + str(i) + "].measure}}"
-    
-    # Section 7: المهام
-    doc.add_heading("7- المهام", level=1)
+    # Section 1: المهام
+    doc.add_heading("1- المهام", level=1)
     
     # Leadership tasks
-    doc.add_heading("7.1- المهام القيادية/الإشرافية", level=2)
+    doc.add_paragraph("المهام القيادية/الإشرافية")
     lead_tasks_table = doc.add_table(rows=6, cols=1)
     lead_tasks_table.style = 'Table Grid'
     lead_tasks_table.rows[0].cells[0].text = "المهمة"
@@ -691,7 +861,7 @@ def create_template_with_placeholders():
         lead_tasks_table.rows[i + 1].cells[0].text = "{{tasks.lead[" + str(i) + "]}}"
     
     # Specialized tasks
-    doc.add_heading("7.2- المهام التخصصية", level=2)
+    doc.add_paragraph("المهام التخصصية")
     spec_tasks_table = doc.add_table(rows=6, cols=1)
     spec_tasks_table.style = 'Table Grid'
     spec_tasks_table.rows[0].cells[0].text = "المهمة"
@@ -700,13 +870,61 @@ def create_template_with_placeholders():
         spec_tasks_table.rows[i + 1].cells[0].text = "{{tasks.spec[" + str(i) + "]}}"
     
     # Other tasks
-    doc.add_heading("7.3- مهام أخرى", level=2)
+    doc.add_paragraph("مهام أخرى إضافية")
     other_tasks_table = doc.add_table(rows=4, cols=1)
     other_tasks_table.style = 'Table Grid'
     other_tasks_table.rows[0].cells[0].text = "المهمة"
     
     for i in range(3):
         other_tasks_table.rows[i + 1].cells[0].text = "{{tasks.other[" + str(i) + "]}}"
+    
+    # Section 2: الجدارات السلوكية والفنية
+    doc.add_heading("2- الجدارات السلوكية والفنية", level=1)
+    
+    # Behavioral competencies with levels
+    doc.add_paragraph("الرقم\tالجدارات السلوكية\tمستوى الإتقان")
+    behavioral_levels_table = doc.add_table(rows=6, cols=3)
+    behavioral_levels_table.style = 'Table Grid'
+    behavioral_levels_table.rows[0].cells[0].text = "الرقم"
+    behavioral_levels_table.rows[0].cells[1].text = "الجدارات السلوكية"
+    behavioral_levels_table.rows[0].cells[2].text = "مستوى الإتقان"
+    
+    for i in range(5):
+        row_cells = behavioral_levels_table.rows[i + 1].cells
+        row_cells[0].text = str(i + 1)
+        row_cells[1].text = "{{comp.behavioral[" + str(i) + "].name}}"
+        row_cells[2].text = "{{comp.behavioral[" + str(i) + "].level}}"
+    
+    # Technical competencies with levels
+    doc.add_paragraph("الرقم\tالجدارات الفنية\tمستوى الإتقان")
+    tech_levels_table = doc.add_table(rows=6, cols=3)
+    tech_levels_table.style = 'Table Grid'
+    tech_levels_table.rows[0].cells[0].text = "الرقم"
+    tech_levels_table.rows[0].cells[1].text = "الجدارات الفنية"
+    tech_levels_table.rows[0].cells[2].text = "مستوى الإتقان"
+    
+    for i in range(5):
+        row_cells = tech_levels_table.rows[i + 1].cells
+        row_cells[0].text = str(i + 1)
+        row_cells[1].text = "{{comp.tech[" + str(i) + "].name}}"
+        row_cells[2].text = "{{comp.tech[" + str(i) + "].level}}"
+    
+    # Section 3: إدارة الأداء المهني
+    doc.add_heading("3- إدارة الأداء المهني", level=1)
+    
+    # KPIs
+    doc.add_paragraph("الرقم\tمؤشرات الأداء الرئيسية\tطريقة القياس")
+    kpi_table = doc.add_table(rows=5, cols=3)
+    kpi_table.style = 'Table Grid'
+    kpi_table.rows[0].cells[0].text = "الرقم"
+    kpi_table.rows[0].cells[1].text = "مؤشرات الأداء الرئيسية"
+    kpi_table.rows[0].cells[2].text = "طريقة القياس"
+    
+    for i in range(4):
+        row_cells = kpi_table.rows[i + 1].cells
+        row_cells[0].text = str(i + 1)
+        row_cells[1].text = "{{kpis[" + str(i) + "].metric}}"
+        row_cells[2].text = "{{kpis[" + str(i) + "].measure}}"
     
     # Save to bytes
     out = io.BytesIO()
