@@ -1,5 +1,2 @@
 streamlit
-docxtpl
-pypdf
-openpyxl
-ruamel.yaml
+python-docx

@@ -1,8 +1,531 @@
-import io, zipfile, re, json
-from pathlib import Path
 import streamlit as st
-from docxtpl import DocxTemplate  # For template filling
-from docx import Document  # For reading source document
+import io
+import zipfile
+from docx import Document
+import re
+
+# Utility functions for parsing and cleaning
+def normalize_digits(s):
+    """Convert Arabic-Indic digits to ASCII digits."""
+    if not s:
+        return s
+    
+    # Arabic-Indic to ASCII mapping
+    arabic_digits = {
+        '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+        '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+    }
+    
+    for arabic, ascii_digit in arabic_digits.items():
+        s = s.replace(arabic, ascii_digit)
+    
+    return s
+
+def clean_value(s):
+    """Clean and normalize values by removing duplicates, prefixes, and normalizing formatting."""
+    if not s:
+        return ""
+    
+    # Normalize digits
+    s = normalize_digits(s)
+    
+    # Split by lines and clean each line
+    lines = s.split('\n')
+    cleaned_lines = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Remove repeated prefixes like "المجموعة الرئيسية:" etc.
+        prefixes_to_remove = [
+            r'^(\s*المجموعة الرئيسية\s*[:：]\s*)+',
+            r'^(\s*رمز المجموعة الرئيسية\s*[:：]\s*)+',
+            r'^(\s*المجموعة الفرعية\s*[:：]\s*)+',
+            r'^(\s*رمز المجموعة الفرعية\s*[:：]\s*)+',
+            r'^(\s*المجموعة الثانوية\s*[:：]\s*)+',
+            r'^(\s*رمز المجموعة الثانوية\s*[:：]\s*)+',
+            r'^(\s*مجموعة الوحدات\s*[:：]\s*)+',
+            r'^(\s*رمز الوحدات\s*[:：]\s*)+',
+            r'^(\s*المهنة\s*[:：]\s*)+',
+            r'^(\s*رمز المهنة\s*[:：]\s*)+',
+            r'^(\s*موقع العمل\s*[:：]\s*)+',
+            r'^(\s*المرتبة\s*[:：]\s*)+'
+        ]
+        
+        for prefix_pattern in prefixes_to_remove:
+            line = re.sub(prefix_pattern, '', line)
+        
+        # Normalize separators (Arabic semicolons/commas)
+        line = line.replace('؛', ';').replace('،', ',')
+        
+        # Collapse multiple spaces
+        line = re.sub(r'\s+', ' ', line).strip()
+        
+        if line and line not in cleaned_lines:
+            cleaned_lines.append(line)
+    
+    return '\n'.join(cleaned_lines)
+
+def extract_reference_data(text):
+    """Extract reference data for 'البيانات المرجعية للمهنة' section."""
+    expected_labels = [
+        "المجموعة الرئيسية", "رمز المجموعة الرئيسية", "المجموعة الفرعية", "رمز المجموعة الفرعية",
+        "المجموعة الثانوية", "رمز المجموعة الثانوية", "مجموعة الوحدات", "رمز الوحدات",
+        "المهنة", "رمز المهنة", "موقع العمل", "المرتبة"
+    ]
+    
+    # Build regex pattern for all labels
+    label_pattern = '|'.join(map(re.escape, expected_labels))
+    pattern = rf'^\s*({label_pattern})\s*[:：]\s*(.+)$'
+    
+    extracted_data = {}
+    lines = text.split('\n')
+    
+    for line in lines:
+        match = re.match(pattern, line)
+        if match:
+            label = match.group(1)
+            value = clean_value(match.group(2))
+            if label not in extracted_data and value:
+                extracted_data[label] = value
+    
+    # Ensure all expected labels exist (fill with empty if missing)
+    result = {}
+    for label in expected_labels:
+        result[label] = extracted_data.get(label, "")
+    
+    return result
+
+def extract_communication_channels(text):
+    """Extract internal and external communication channels."""
+    internal_channels = []
+    external_channels = []
+    
+    lines = text.split('\n')
+    current_section = None
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        if 'الجهات الداخلية' in line or 'داخلي' in line:
+            current_section = 'internal'
+            # Extract channels from this line
+            channels_text = re.sub(r'^.*?[:：]\s*', '', line)
+            if channels_text:
+                channels = [c.strip() for c in re.split(r'[,،;؛]', channels_text) if c.strip()]
+                internal_channels.extend(channels)
+        elif 'الجهات الخارجية' in line or 'خارجي' in line:
+            current_section = 'external'
+            # Extract channels from this line
+            channels_text = re.sub(r'^.*?[:：]\s*', '', line)
+            if channels_text:
+                channels = [c.strip() for c in re.split(r'[,،;؛]', channels_text) if c.strip()]
+                external_channels.extend(channels)
+        elif 'الغرض من التواصل' in line and current_section:
+            purpose_text = re.sub(r'^.*?[:：]\s*', '', line)
+            if purpose_text:
+                purpose = clean_value(purpose_text)
+                if current_section == 'internal' and internal_channels:
+                    # Associate purpose with internal channels
+                    pass  # Will be handled in the table creation
+                elif current_section == 'external' and external_channels:
+                    # Associate purpose with external channels
+                    pass  # Will be handled in the table creation
+    
+    return {
+        'internal': internal_channels,
+        'external': external_channels
+    }
+
+def extract_profession_levels(text):
+    """Extract profession levels information."""
+    levels_data = {}
+    
+    lines = text.split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        if 'مستوى المهنة' in line:
+            levels_data['مستوى المهنة القياسي'] = clean_value(re.sub(r'^.*?[:：]\s*', '', line))
+        elif 'رمز المستوى' in line:
+            levels_data['رمز المستوى المهني'] = clean_value(re.sub(r'^.*?[:：]\s*', '', line))
+        elif 'الدور المهني' in line:
+            levels_data['الدور المهني'] = clean_value(re.sub(r'^.*?[:：]\s*', '', line))
+        elif 'الترتيب' in line or 'التدرج المهني' in line:
+            levels_data['التدرج المهني (المرتبة)'] = clean_value(re.sub(r'^.*?[:：]\s*', '', line))
+    
+    # Ensure all expected fields exist
+    expected_fields = ['مستوى المهنة القياسي', 'رمز المستوى المهني', 'الدور المهني', 'التدرج المهني (المرتبة)']
+    for field in expected_fields:
+        if field not in levels_data:
+            levels_data[field] = ""
+    
+    return levels_data
+
+def extract_competencies(text):
+    """Extract competencies split by type."""
+    competencies = {
+        'الجدارات السلوكية': [],
+        'الجدارات الأساسية': [],
+        'الجدارات القيادية': [],
+        'الجدارات الفنية': []
+    }
+    
+    lines = text.split('\n')
+    current_type = None
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Determine competency type
+        if 'سلوكية' in line:
+            current_type = 'الجدارات السلوكية'
+        elif 'أساسية' in line:
+            current_type = 'الجدارات الأساسية'
+        elif 'قيادية' in line:
+            current_type = 'الجدارات القيادية'
+        elif 'فنية' in line:
+            current_type = 'الجدارات الفنية'
+        elif current_type and ':' in line:
+            # Extract competencies from this line
+            comp_text = re.sub(r'^.*?[:：]\s*', '', line)
+            if comp_text:
+                comps = [c.strip() for c in re.split(r'[,،;؛]', comp_text) if c.strip()]
+                competencies[current_type].extend(comps)
+    
+    return competencies
+
+def extract_tasks(text):
+    """Extract tasks split by category."""
+    tasks = {
+        'المهام القيادية/الإشرافية': [],
+        'المهام التخصصية': [],
+        'مهام أخرى إضافية': []
+    }
+    
+    lines = text.split('\n')
+    current_category = None
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Determine task category
+        if 'قيادية' in line or 'إشرافية' in line:
+            current_category = 'المهام القيادية/الإشرافية'
+        elif 'تخصصية' in line:
+            current_category = 'المهام التخصصية'
+        elif 'مهام أخرى' in line or 'إضافية' in line:
+            current_category = 'مهام أخرى إضافية'
+        elif current_category and ':' in line:
+            # Extract tasks from this line
+            task_text = re.sub(r'^.*?[:：]\s*', '', line)
+            if task_text:
+                task_list = [t.strip() for t in re.split(r'[,،;؛]', task_text) if t.strip()]
+                tasks[current_category].extend(task_list)
+    
+    return tasks
+
+def extract_kpis(text):
+    """Extract KPIs with measurement methods."""
+    kpis = []
+    
+    lines = text.split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Look for KPI patterns like "1- {kpi} - طريقة القياس: {method}"
+        kpi_match = re.match(r'^(\d+)[-ـ]\s*(.+?)\s*[-ـ]\s*طريقة القياس\s*[:：]\s*(.+)$', line)
+        if kpi_match:
+            kpis.append({
+                'الرقم': kpi_match.group(1),
+                'مؤشر الأداء': clean_value(kpi_match.group(2)),
+                'طريقة القياس': clean_value(kpi_match.group(3))
+            })
+    
+    # If no structured KPIs found, try to extract from general text
+    if not kpis:
+        kpi_text = clean_value(text)
+        if kpi_text:
+            kpis = [{'الرقم': '1', 'مؤشر الأداء': kpi_text, 'طريقة القياس': 'قياس مباشر'}]
+    
+    return kpis
+
+# DOCX building helper functions
+def add_title(doc, text):
+    """Add a centered, bold title."""
+    title = doc.add_heading(text, 0)
+    title.alignment = 1  # Center alignment
+    return title
+
+def add_keyval_table(doc, title, rows):
+    """Add a 2-column key-value table."""
+    if not rows:
+        return
+    
+    # Create table
+    table = doc.add_table(rows=len(rows) + 1, cols=2)
+    table.style = 'Table Grid'
+    
+    # Header row
+    header_cells = table.rows[0].cells
+    header_cells[0].text = title
+    header_cells[1].text = "القيمة"
+    
+    # Make header bold and center
+    for cell in header_cells:
+        for paragraph in cell.paragraphs:
+            paragraph.alignment = 1  # Center
+            for run in paragraph.runs:
+                run.bold = True
+    
+    # Data rows
+    for i, (key, value) in enumerate(rows.items() if isinstance(rows, dict) else enumerate(rows)):
+        row_cells = table.rows[i + 1].cells
+        if isinstance(rows, dict):
+            row_cells[0].text = str(key)
+            row_cells[1].text = str(value) if value else ""
+        else:
+            row_cells[0].text = str(key)
+            row_cells[1].text = str(value) if value else ""
+        
+        # Make label column bold
+        for paragraph in row_cells[0].paragraphs:
+            for run in paragraph.runs:
+                run.bold = True
+    
+    # Set RTL alignment for all cells
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = 2  # RTL alignment
+    
+    # Add spacing after table
+    doc.add_paragraph("")
+
+def add_list_table(doc, title, items):
+    """Add a single-column list table."""
+    if not items:
+        return
+    
+    # Create table
+    table = doc.add_table(rows=len(items) + 1, cols=1)
+    table.style = 'Table Grid'
+    
+    # Header row
+    header_cell = table.rows[0].cells[0]
+    header_cell.text = title
+    
+    # Make header bold and center
+    for paragraph in header_cell.paragraphs:
+        paragraph.alignment = 1  # Center
+        for run in paragraph.runs:
+            run.bold = True
+    
+    # Data rows
+    for i, item in enumerate(items):
+        row_cell = table.rows[i + 1].cells[0]
+        row_cell.text = str(item)
+    
+    # Set RTL alignment for all cells
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = 2  # RTL alignment
+    
+    # Add spacing after table
+    doc.add_paragraph("")
+
+def add_two_col_table(doc, title, rows):
+    """Add a two-column table for communication channels."""
+    if not rows:
+        return
+    
+    # Create table
+    table = doc.add_table(rows=len(rows) + 1, cols=2)
+    table.style = 'Table Grid'
+    
+    # Header row
+    header_cells = table.rows[0].cells
+    header_cells[0].text = title
+    header_cells[1].text = "الغرض من التواصل"
+    
+    # Make header bold and center
+    for cell in header_cells:
+        for paragraph in cell.paragraphs:
+            paragraph.alignment = 1  # Center
+            for run in paragraph.runs:
+                run.bold = True
+    
+    # Data rows
+    for i, row_data in enumerate(rows):
+        row_cells = table.rows[i + 1].cells
+        if isinstance(row_data, dict):
+            row_cells[0].text = str(row_data.get('جهة', ''))
+            row_cells[1].text = str(row_data.get('غرض', ''))
+        else:
+            row_cells[0].text = str(row_data[0]) if len(row_data) > 0 else ""
+            row_cells[1].text = str(row_data[1]) if len(row_data) > 1 else ""
+    
+    # Set RTL alignment for all cells
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = 2  # RTL alignment
+    
+    # Add spacing after table
+    doc.add_paragraph("")
+
+def add_kpi_table(doc, title, rows):
+    """Add a 3-column KPI table."""
+    if not rows:
+        return
+    
+    # Create table
+    table = doc.add_table(rows=len(rows) + 1, cols=3)
+    table.style = 'Table Grid'
+    
+    # Header row
+    header_cells = table.rows[0].cells
+    header_cells[0].text = "الرقم"
+    header_cells[1].text = "مؤشرات الأداء الرئيسية"
+    header_cells[2].text = "طريقة القياس"
+    
+    # Make header bold and center
+    for cell in header_cells:
+        for paragraph in cell.paragraphs:
+            paragraph.alignment = 1  # Center
+            for run in paragraph.runs:
+                run.bold = True
+    
+    # Data rows
+    for i, row_data in enumerate(rows):
+        row_cells = table.rows[i + 1].cells
+        if isinstance(row_data, dict):
+            row_cells[0].text = str(row_data.get('الرقم', i + 1))
+            row_cells[1].text = str(row_data.get('مؤشر الأداء', ''))
+            row_cells[2].text = str(row_data.get('طريقة القياس', ''))
+        else:
+            row_cells[0].text = str(i + 1)
+            row_cells[1].text = str(row_data[0]) if len(row_data) > 0 else ""
+            row_cells[2].text = str(row_data[1]) if len(row_data) > 1 else ""
+    
+    # Set RTL alignment for all cells
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = 2  # RTL alignment
+    
+    # Add spacing after table
+    doc.add_paragraph("")
+
+def build_filled_docx_bytes(template_bytes: bytes, job_title: str, data: dict) -> bytes:
+    """
+    Build a filled DOCX using structured tables following the exact template design.
+    This creates clean, professional documents with proper table structures.
+    """
+    try:
+        # Create a new document
+        doc = Document()
+        
+        # Add title - centered and bold
+        title = add_title(doc, f"نموذج بطاقة الوصف المهني — {job_title}")
+        
+        # Add spacing after title
+        doc.add_paragraph("")
+        
+        # Section 1: البيانات المرجعية للمهنة (Job Reference Data)
+        ref_data = extract_reference_data(data.get("ref", ""))
+        # Override with job title
+        ref_data["المهنة"] = job_title
+        add_keyval_table(doc, "1- البيانات المرجعية للمهنة", ref_data)
+        
+        # Section 2: الملخص العام للمهنة (General Summary)
+        summary_data = clean_value(data.get("summary", "")) or "لا يوجد ملخص"
+        add_keyval_table(doc, "2- الملخص العام للمهنة", {"الملخص العام": summary_data})
+        
+        # Section 3: قنوات التواصل (Communication Channels)
+        channels = extract_communication_channels(data.get("channels", ""))
+        
+        # Internal channels table
+        if channels['internal']:
+            internal_rows = [{'جهة': channel, 'غرض': 'تنسيق العمل'} for channel in channels['internal']]
+            add_two_col_table(doc, "3- قنوات التواصل الداخلية", internal_rows)
+        
+        # External channels table
+        if channels['external']:
+            external_rows = [{'جهة': channel, 'غرض': 'التواصل مع العملاء'} for channel in channels['external']]
+            add_two_col_table(doc, "3- قنوات التواصل الخارجية", external_rows)
+        
+        # Section 4: مستويات المهنة القياسية (Standard Profession Levels)
+        levels_data = extract_profession_levels(data.get("levels", ""))
+        add_keyval_table(doc, "4- مستويات المهنة القياسية", levels_data)
+        
+        # Section 5: الجدارات (Competencies)
+        competencies = extract_competencies(data.get("competencies", ""))
+        for comp_type, comp_list in competencies.items():
+            if comp_list:
+                add_list_table(doc, f"5- {comp_type}", comp_list)
+        
+        # Section 6: إدارة الأداء المهني (Performance Management)
+        kpis = extract_kpis(data.get("kpis", ""))
+        if kpis:
+            add_kpi_table(doc, "6- إدارة الأداء المهني", kpis)
+        
+        # Section 7: المهام (Tasks)
+        tasks = extract_tasks(data.get("tasks", ""))
+        for task_type, task_list in tasks.items():
+            if task_list:
+                add_list_table(doc, f"7- {task_type}", task_list)
+        
+        # Add Form B: نموذج الوصف الفعلي (Actual Description Form)
+        doc.add_heading("نموذج الوصف الفعلي", level=1)
+        doc.add_paragraph("")
+        
+        # Form B Section 1: المهام (Tasks)
+        if tasks:
+            for task_type, task_list in tasks.items():
+                if task_list:
+                    add_list_table(doc, f"1- {task_type}", task_list)
+        
+        # Form B Section 2: الجدارات السلوكية والفنية (Behavioral and Technical Competencies)
+        behavioral_comps = competencies.get('الجدارات السلوكية', [])
+        technical_comps = competencies.get('الجدارات الفنية', [])
+        
+        if behavioral_comps:
+            behavioral_rows = [{'الرقم': i+1, 'الجدارة': comp, 'مستوى الإتقان': 'متقدم'} 
+                             for i, comp in enumerate(behavioral_comps[:5])]
+            add_kpi_table(doc, "2- الجدارات السلوكية والفنية", behavioral_rows)
+        
+        if technical_comps:
+            technical_rows = [{'الرقم': i+1, 'الجدارة': comp, 'مستوى الإتقان': 'متقدم'} 
+                            for i, comp in enumerate(technical_comps[:5])]
+            add_kpi_table(doc, "2- الجدارات الفنية", technical_rows)
+        
+        # Form B Section 3: إدارة الأداء المهني (Performance Management)
+        if kpis:
+            add_kpi_table(doc, "3- إدارة الأداء المهني", kpis)
+        
+        # Save the rendered document to bytes
+        out = io.BytesIO()
+        doc.save(out)
+        out.seek(0)
+        return out.read()
+        
+    except Exception as e:
+        st.error(f"خطأ في ملء القالب: {e}")
+        return template_bytes
 
 st.set_page_config(page_title="ملء النماذج (Multi-Job)", layout="centered")
 st.title("ملء النماذج — متعدد الوظائف (DOCX → DOCX)")
@@ -377,260 +900,6 @@ def slice_jobs_from_source(paras: list[str], single_job: bool = False) -> dict:
         }
 
     return blocks
-
-def add_table(doc, label, data):
-    """
-    Add a 2-column table to the document with proper RTL formatting.
-    
-    Args:
-        doc: Document object
-        label: Table title/label
-        data: Data to display (dict, list, or string)
-    """
-    # Create table based on data type
-    if isinstance(data, dict):
-        # For dictionaries, create table with key-value pairs
-        rows = len(data) + 1  # +1 for header
-        table = doc.add_table(rows=rows, cols=2)
-        table.style = 'Table Grid'
-        
-        # Header row
-        header_cells = table.rows[0].cells
-        header_cells[0].text = label
-        header_cells[1].text = "القيمة"
-        
-        # Make header bold and center
-        for cell in header_cells:
-            for paragraph in cell.paragraphs:
-                paragraph.alignment = 1  # Center alignment
-                for run in paragraph.runs:
-                    run.bold = True
-        
-        # Data rows
-        for i, (key, value) in enumerate(data.items(), 1):
-            row_cells = table.rows[i].cells
-            row_cells[0].text = str(key)
-            row_cells[1].text = str(value) if value else ""
-            
-            # Make label column bold
-            for paragraph in row_cells[0].paragraphs:
-                for run in paragraph.runs:
-                    run.bold = True
-    
-    elif isinstance(data, list):
-        # For lists, create table with items
-        if not data:
-            # Empty list - create single row
-            table = doc.add_table(rows=2, cols=2)
-            table.style = 'Table Grid'
-            header_cells = table.rows[0].cells
-            header_cells[0].text = label
-            header_cells[1].text = "القيمة"
-            
-            # Make header bold and center
-            for cell in header_cells:
-                for paragraph in cell.paragraphs:
-                    paragraph.alignment = 1
-                    for run in paragraph.runs:
-                        run.bold = True
-            
-            # Empty data row
-            data_cells = table.rows[1].cells
-            data_cells[0].text = "لا توجد بيانات"
-            data_cells[1].text = ""
-        else:
-            # List with items
-            rows = len(data) + 1  # +1 for header
-            table = doc.add_table(rows=rows, cols=2)
-            table.style = 'Table Grid'
-            
-            # Header row
-            header_cells = table.rows[0].cells
-            header_cells[0].text = label
-            header_cells[1].text = "القيمة"
-            
-            # Make header bold and center
-            for cell in header_cells:
-                for paragraph in cell.paragraphs:
-                    paragraph.alignment = 1
-                    for run in paragraph.runs:
-                        run.bold = True
-            
-            # Data rows
-            for i, item in enumerate(data, 1):
-                row_cells = table.rows[i].cells
-                if isinstance(item, dict):
-                    # Handle dictionary items (like competencies with number, competency, level)
-                    if 'الرقم' in item and 'الجدارة' in item:
-                        row_cells[0].text = f"{item.get('الرقم', '')} - {item.get('الجدارة', '')}"
-                        row_cells[1].text = str(item.get('مستوى الإتقان', ''))
-                    elif 'الرقم' in item and 'مؤشر الأداء الرئيسي' in item:
-                        row_cells[0].text = f"{item.get('الرقم', '')} - {item.get('مؤشر الأداء الرئيسي', '')}"
-                        row_cells[1].text = str(item.get('طريقة القياس', ''))
-                    else:
-                        # Generic dictionary handling
-                        row_cells[0].text = str(list(item.keys())[0]) if item else ""
-                        row_cells[1].text = str(list(item.values())[0]) if item else ""
-                else:
-                    # Simple list item
-                    row_cells[0].text = str(i)
-                    row_cells[1].text = str(item)
-    
-    else:
-        # For strings or other types, create single row
-        table = doc.add_table(rows=2, cols=2)
-        table.style = 'Table Grid'
-        
-        # Header row
-        header_cells = table.rows[0].cells
-        header_cells[0].text = label
-        header_cells[1].text = "القيمة"
-        
-        # Make header bold and center
-        for cell in header_cells:
-            for paragraph in cell.paragraphs:
-                paragraph.alignment = 1
-                for run in paragraph.runs:
-                    run.bold = True
-        
-        # Data row
-        data_cells = table.rows[1].cells
-        data_cells[0].text = label
-        data_cells[1].text = str(data) if data else ""
-        
-        # Make label column bold
-        for paragraph in data_cells[0].paragraphs:
-            for run in paragraph.runs:
-                run.bold = True
-    
-    # Set RTL alignment for all cells
-    for row in table.rows:
-        for cell in row.cells:
-            for paragraph in cell.paragraphs:
-                paragraph.alignment = 2  # RTL alignment
-    
-    # Add spacing after table
-    doc.add_paragraph("")
-
-def build_filled_docx_bytes(template_bytes: bytes, job_title: str, data: dict) -> bytes:
-    """
-    Build a filled DOCX using tables for structured layout with proper RTL formatting.
-    This creates a clean, professional document with tables instead of plain paragraphs.
-    """
-    try:
-        # Create a new document
-        doc = Document()
-        
-        # Add title - centered and bold
-        title = doc.add_heading(f"نموذج بطاقة الوصف المهني — {job_title}", 0)
-        title.alignment = 1  # Center alignment
-        
-        # Add spacing after title
-        doc.add_paragraph("")
-        
-        # Section 1: البيانات المرجعية للمهنة (Job Reference Data)
-        ref_data = {
-            "المجموعة الرئيسية": data.get("ref", ""),
-            "رمز المجموعة الرئيسية": "001",
-            "المجموعة الفرعية": data.get("ref", ""),
-            "رمز المجموعة الفرعية": "001",
-            "المجموعة الثانوية": data.get("ref", ""),
-            "رمز المجموعة الثانوية": "001",
-            "مجموعة الوحدات": data.get("ref", ""),
-            "رمز الوحدات": "001",
-            "المهنة": job_title,
-            "رمز المهنة": "001",
-            "موقع العمل": "المقر الرئيسي",
-            "المرتبة": "أول"
-        }
-        add_table(doc, "1- البيانات المرجعية للمهنة", ref_data)
-        
-        # Section 2: الملخص العام للمهنة (General Summary)
-        summary_data = data.get("summary", "") or "لا يوجد ملخص"
-        add_table(doc, "2- الملخص العام للمهنة", summary_data)
-        
-        # Section 3: قنوات التواصل (Communication Channels)
-        channels_data = {
-            "جهات التواصل الداخلية": data.get("channels", ""),
-            "جهات التواصل الخارجية": data.get("channels", "")
-        }
-        add_table(doc, "3- قنوات التواصل", channels_data)
-        
-        # Section 4: مستويات المهنة القياسية (Standard Profession Levels)
-        levels_data = {
-            "مستوى المهنة القياسي": data.get("levels", ""),
-            "رمز المستوى المهني": "L1",
-            "الدور المهني": data.get("levels", ""),
-            "التدرج المهني (المرتبة)": "أول"
-        }
-        add_table(doc, "4- مستويات المهنة القياسية", levels_data)
-        
-        # Section 5: الجدارات (Competencies)
-        competencies_data = {
-            "الجدارات السلوكية": data.get("competencies", ""),
-            "الجدارات الأساسية": data.get("competencies", ""),
-            "الجدارات القيادية": data.get("competencies", ""),
-            "الجدارات الفنية": data.get("competencies", "")
-        }
-        add_table(doc, "5- الجدارات", competencies_data)
-        
-        # Section 6: إدارة الأداء المهني (Performance Management)
-        kpis_data = {
-            "مؤشر الأداء 1": data.get("kpis", ""),
-            "مؤشر الأداء 2": data.get("kpis", ""),
-            "مؤشر الأداء 3": data.get("kpis", ""),
-            "مؤشر الأداء 4": data.get("kpis", "")
-        }
-        add_table(doc, "6- إدارة الأداء المهني", kpis_data)
-        
-        # Section 7: المهام (Tasks)
-        tasks_data = {
-            "المهام القيادية/الإشرافية": data.get("tasks", ""),
-            "المهام التخصصية": data.get("tasks", ""),
-            "مهام أخرى إضافية": data.get("tasks", "")
-        }
-        add_table(doc, "7- المهام", tasks_data)
-        
-        # Add Form B: نموذج الوصف الفعلي (Actual Description Form)
-        doc.add_heading("نموذج الوصف الفعلي", level=1)
-        doc.add_paragraph("")
-        
-        # Form B Section 1: المهام (Tasks)
-        form_b_tasks = [
-            {"الرقم": "1", "المهمة": data.get("tasks", "")},
-            {"الرقم": "2", "المهمة": data.get("tasks", "")},
-            {"الرقم": "3", "المهمة": data.get("tasks", "")}
-        ]
-        add_table(doc, "1- المهام", form_b_tasks)
-        
-        # Form B Section 2: الجدارات السلوكية والفنية (Behavioral and Technical Competencies)
-        behavioral_competencies = [
-            {"الرقم": "1", "الجدارة": data.get("competencies", ""), "مستوى الإتقان": "متقدم"},
-            {"الرقم": "2", "الجدارة": data.get("competencies", ""), "مستوى الإتقان": "متقدم"},
-            {"الرقم": "3", "الجدارة": data.get("competencies", ""), "مستوى الإتقان": "متقدم"},
-            {"الرقم": "4", "الجدارة": data.get("competencies", ""), "مستوى الإتقان": "متقدم"},
-            {"الرقم": "5", "الجدارة": data.get("competencies", ""), "مستوى الإتقان": "متقدم"}
-        ]
-        add_table(doc, "2- الجدارات السلوكية والفنية", behavioral_competencies)
-        
-        # Form B Section 3: إدارة الأداء المهني (Performance Management)
-        performance_indicators = [
-            {"الرقم": "1", "مؤشر الأداء": data.get("kpis", ""), "طريقة القياس": "قياس مباشر"},
-            {"الرقم": "2", "مؤشر الأداء": data.get("kpis", ""), "طريقة القياس": "قياس مباشر"},
-            {"الرقم": "3", "مؤشر الأداء": data.get("kpis", ""), "طريقة القياس": "قياس مباشر"},
-            {"الرقم": "4", "مؤشر الأداء": data.get("kpis", ""), "طريقة القياس": "قياس مباشر"}
-        ]
-        add_table(doc, "3- إدارة الأداء المهني", performance_indicators)
-        
-        # Save the rendered document to bytes
-        out = io.BytesIO()
-        doc.save(out)
-        out.seek(0)
-        return out.read()
-        
-    except Exception as e:
-        st.error(f"خطأ في ملء القالب: {e}")
-        return template_bytes
 
 def zip_many(named_bytes: dict[str, bytes]) -> bytes:
     bio = io.BytesIO()
