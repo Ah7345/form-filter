@@ -238,10 +238,14 @@ def parse_reference_data(content):
     # Look for reference data patterns
     patterns = {
         r'المجموعة الرئيسية:\s*([^•\n]+)': 'ref.المجموعة_الرئيسية',
+        r'رمز المجموعة الرئيسية:\s*([^•\n]+)': 'ref.code_المجموعة_الرئيسية',
         r'المجموعة الفرعية:\s*([^•\n]+)': 'ref.المجموعة_الفرعية',
+        r'رمز المجموعة الفرعية:\s*([^•\n]+)': 'ref.code_المجموعة_الفرعية',
         r'المجموعة الثانوية:\s*([^•\n]+)': 'ref.المجموعة_الثانوية',
+        r'رمز المجموعة الثانوية:\s*([^•\n]+)': 'ref.code_المجموعة_الثانوية',
         r'مجموعة الوحدات:\s*([^•\n]+)': 'ref.مجموعة_الوحدات',
-        r'رمز المهنة[^:]*:\s*([^•\n]+)': 'ref.رمز_المهنة',
+        r'رمز الوحدات:\s*([^•\n]+)': 'ref.code_الوحدات',
+        r'رمز المهنة[^:]*:\s*([^•\n]+)': 'ref.code_المهنة',
         r'المرتبة[^:]*:\s*([^•\n]+)': 'ref.المرتبة',
         r'موقع العمل:\s*([^•\n]+)': 'ref.موقع_العمل'
     }
@@ -728,16 +732,21 @@ def create_template_with_placeholders():
     
     # Section 1: البيانات المرجعية للمهنة
     doc.add_heading("1- البيانات المرجعية للمهنة", level=1)
-    ref_table = doc.add_table(rows=7, cols=2)
+    ref_table = doc.add_table(rows=13, cols=2)
     ref_table.style = 'Table Grid'
     
     # Reference data rows - matching the actual template structure
     ref_data = [
         ("المجموعة الرئيسية", "{{ref.المجموعة_الرئيسية}}"),
+        ("رمز المجموعة الرئيسية", "{{ref.code_المجموعة_الرئيسية}}"),
         ("المجموعة الفرعية", "{{ref.المجموعة_الفرعية}}"),
+        ("رمز المجموعة الفرعية", "{{ref.code_المجموعة_الفرعية}}"),
         ("المجموعة الثانوية", "{{ref.المجموعة_الثانوية}}"),
+        ("رمز المجموعة الثانوية", "{{ref.code_المجموعة_الثانوية}}"),
         ("مجموعة الوحدات", "{{ref.مجموعة_الوحدات}}"),
+        ("رمز الوحدات", "{{ref.code_الوحدات}}"),
         ("المهنة", "{{ref.المهنة}}"),
+        ("رمز المهنة", "{{ref.code_المهنة}}"),
         ("موقع العمل", "{{ref.موقع_العمل}}"),
         ("المرتبة", "{{ref.المرتبة}}")
     ]
@@ -882,7 +891,6 @@ def create_template_with_placeholders():
     doc.add_heading("2- الجدارات السلوكية والفنية", level=1)
     
     # Behavioral competencies with levels
-    doc.add_paragraph("الرقم\tالجدارات السلوكية\tمستوى الإتقان")
     behavioral_levels_table = doc.add_table(rows=6, cols=3)
     behavioral_levels_table.style = 'Table Grid'
     behavioral_levels_table.rows[0].cells[0].text = "الرقم"
@@ -896,7 +904,6 @@ def create_template_with_placeholders():
         row_cells[2].text = "{{comp.behavioral[" + str(i) + "].level}}"
     
     # Technical competencies with levels
-    doc.add_paragraph("الرقم\tالجدارات الفنية\tمستوى الإتقان")
     tech_levels_table = doc.add_table(rows=6, cols=3)
     tech_levels_table.style = 'Table Grid'
     tech_levels_table.rows[0].cells[0].text = "الرقم"
@@ -913,7 +920,6 @@ def create_template_with_placeholders():
     doc.add_heading("3- إدارة الأداء المهني", level=1)
     
     # KPIs
-    doc.add_paragraph("الرقم\tمؤشرات الأداء الرئيسية\tطريقة القياس")
     kpi_table = doc.add_table(rows=5, cols=3)
     kpi_table.style = 'Table Grid'
     kpi_table.rows[0].cells[0].text = "الرقم"
