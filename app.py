@@ -149,71 +149,104 @@ def parse_source_to_contexts(src_bytes, schema):
         # Join all text for processing
         full_text = "\n".join(all_text)
         
-        # Simple approach: treat entire document as one role for now
-        # This ensures the template gets filled with some data
+        # Create context that matches EXACTLY with the template placeholders
         context = {
-            # Reference data - simple text values
-            "ref": {
-                "المجموعة_الرئيسية": "مجموعة رئيسية",
-                "code_المجموعة_الرئيسية": "MR001",
-                "المجموعة_الفرعية": "مجموعة فرعية",
-                "code_المجموعة_الفرعية": "MF001",
-                "المجموعة_الثانوية": "مجموعة ثانوية",
-                "code_المجموعة_الثانوية": "MT001",
-                "مجموعة_الوحدات": "مجموعة وحدات",
-                "code_الوحدات": "MU001",
-                "المهنة": "مهنة",
-                "code_المهنة": "JOB001",
-                "موقع_العمل": "موقع العمل",
-                "المرتبة": "مرتبة"
-            },
+            # Reference data - EXACT placeholder names from template
+            "ref.المجموعة_الرئيسية": "مجموعة رئيسية",
+            "ref.code_المجموعة_الرئيسية": "MR001",
+            "ref.المجموعة_الفرعية": "مجموعة فرعية",
+            "ref.code_المجموعة_الفرعية": "MF001",
+            "ref.المجموعة_الثانوية": "مجموعة ثانوية",
+            "ref.code_المجموعة_الثانوية": "MT001",
+            "ref.مجموعة_الوحدات": "مجموعة وحدات",
+            "ref.code_الوحدات": "MU001",
+            "ref.المهنة": "مهنة",
+            "ref.code_المهنة": "JOB001",
+            "ref.موقع_العمل": "موقع العمل",
+            "ref.المرتبة": "مرتبة",
+            
+            # Summary section
             "summary": "ملخص عام للمهنة",
-            "job_description": "وصف تفصيلي للمهنة",
+            "ref.job_description": "وصف تفصيلي للمهنة",
             
-            # Communication channels
-            "comm": {
-                "internal": [
-                    {"entity": "إدارة داخلية 1", "purpose": "غرض داخلي 1"},
-                    {"entity": "إدارة داخلية 2", "purpose": "غرض داخلي 2"},
-                    {"entity": "إدارة داخلية 3", "purpose": "غرض داخلي 3"},
-                    {"entity": "إدارة داخلية 4", "purpose": "غرض داخلي 4"},
-                    {"entity": "إدارة داخلية 5", "purpose": "غرض داخلي 5"}
-                ],
-                "external": [
-                    {"entity": "جهة خارجية 1", "purpose": "غرض خارجي 1"},
-                    {"entity": "جهة خارجية 2", "purpose": "غرض خارجي 2"},
-                    {"entity": "جهة خارجية 3", "purpose": "غرض خارجي 3"}
-                ]
-            },
+            # Communication channels - EXACT placeholder names
+            "comm.internal[0].entity": "إدارة داخلية 1",
+            "comm.internal[0].purpose": "غرض داخلي 1",
+            "comm.internal[1].entity": "إدارة داخلية 2",
+            "comm.internal[1].purpose": "غرض داخلي 2",
+            "comm.internal[2].entity": "إدارة داخلية 3",
+            "comm.internal[2].purpose": "غرض داخلي 3",
+            "comm.internal[3].entity": "إدارة داخلية 4",
+            "comm.internal[3].purpose": "غرض داخلي 4",
+            "comm.internal[4].entity": "إدارة داخلية 5",
+            "comm.internal[4].purpose": "غرض داخلي 5",
             
-            # Levels
-            "levels": [
-                {"level": "مستوى 1", "code": "L1", "role": "دور 1", "progression": "تدرج 1"},
-                {"level": "مستوى 2", "code": "L2", "role": "دور 2", "progression": "تدرج 2"},
-                {"level": "مستوى 3", "code": "L3", "role": "دور 3", "progression": "تدرج 3"}
-            ],
+            "comm.external[0].entity": "جهة خارجية 1",
+            "comm.external[0].purpose": "غرض خارجي 1",
+            "comm.external[1].entity": "جهة خارجية 2",
+            "comm.external[1].purpose": "غرض خارجي 2",
+            "comm.external[2].entity": "جهة خارجية 3",
+            "comm.external[2].purpose": "غرض خارجي 3",
             
-            # Competencies
-            "comp": {
-                "core": ["جدارة أساسية 1", "جدارة أساسية 2", "جدارة أساسية 3", "جدارة أساسية 4", "جدارة أساسية 5"],
-                "lead": ["جدارة قيادية 1", "جدارة قيادية 2", "جدارة قيادية 3", "جدارة قيادية 4", "جدارة قيادية 5"],
-                "tech": ["جدارة فنية 1", "جدارة فنية 2", "جدارة فنية 3", "جدارة فنية 4", "جدارة فنية 5"]
-            },
+            # Levels - EXACT placeholder names
+            "levels[0].level": "مستوى 1",
+            "levels[0].code": "L1",
+            "levels[0].role": "دور 1",
+            "levels[0].progression": "تدرج 1",
+            "levels[1].level": "مستوى 2",
+            "levels[1].code": "L2",
+            "levels[1].role": "دور 2",
+            "levels[1].progression": "تدرج 2",
+            "levels[2].level": "مستوى 3",
+            "levels[2].code": "L3",
+            "levels[2].role": "دور 3",
+            "levels[2].progression": "تدرج 3",
             
-            # KPIs
-            "kpis": [
-                {"metric": "مؤشر 1", "measure": "طريقة قياس 1"},
-                {"metric": "مؤشر 2", "measure": "طريقة قياس 2"},
-                {"metric": "مؤشر 3", "measure": "طريقة قياس 3"},
-                {"metric": "مؤشر 4", "measure": "طريقة قياس 4"}
-            ],
+            # Competencies - EXACT placeholder names
+            "comp.core[0]": "جدارة أساسية 1",
+            "comp.core[1]": "جدارة أساسية 2",
+            "comp.core[2]": "جدارة أساسية 3",
+            "comp.core[3]": "جدارة أساسية 4",
+            "comp.core[4]": "جدارة أساسية 5",
             
-            # Tasks
-            "tasks": {
-                "lead": ["مهمة قيادية 1", "مهمة قيادية 2", "مهمة قيادية 3", "مهمة قيادية 4", "مهمة قيادية 5"],
-                "spec": ["مهمة تخصصية 1", "مهمة تخصصية 2", "مهمة تخصصية 3", "مهمة تخصصية 4", "مهمة تخصصية 5"],
-                "other": ["مهمة أخرى 1", "مهمة أخرى 2", "مهمة أخرى 3"]
-            }
+            "comp.lead[0]": "جدارة قيادية 1",
+            "comp.lead[1]": "جدارة قيادية 2",
+            "comp.lead[2]": "جدارة قيادية 3",
+            "comp.lead[3]": "جدارة قيادية 4",
+            "comp.lead[4]": "جدارة قيادية 5",
+            
+            "comp.tech[0]": "جدارة فنية 1",
+            "comp.tech[1]": "جدارة فنية 2",
+            "comp.tech[2]": "جدارة فنية 3",
+            "comp.tech[3]": "جدارة فنية 4",
+            "comp.tech[4]": "جدارة فنية 5",
+            
+            # KPIs - EXACT placeholder names
+            "kpis[0].metric": "مؤشر 1",
+            "kpis[0].measure": "طريقة قياس 1",
+            "kpis[1].metric": "مؤشر 2",
+            "kpis[1].measure": "طريقة قياس 2",
+            "kpis[2].metric": "مؤشر 3",
+            "kpis[2].measure": "طريقة قياس 3",
+            "kpis[3].metric": "مؤشر 4",
+            "kpis[3].measure": "طريقة قياس 4",
+            
+            # Tasks - EXACT placeholder names
+            "tasks.lead[0]": "مهمة قيادية 1",
+            "tasks.lead[1]": "مهمة قيادية 2",
+            "tasks.lead[2]": "مهمة قيادية 3",
+            "tasks.lead[3]": "مهمة قيادية 4",
+            "tasks.lead[4]": "مهمة قيادية 5",
+            
+            "tasks.spec[0]": "مهمة تخصصية 1",
+            "tasks.spec[1]": "مهمة تخصصية 2",
+            "tasks.spec[2]": "مهمة تخصصية 3",
+            "tasks.spec[3]": "مهمة تخصصية 4",
+            "tasks.spec[4]": "مهمة تخصصية 5",
+            
+            "tasks.other[0]": "مهمة أخرى 1",
+            "tasks.other[1]": "مهمة أخرى 2",
+            "tasks.other[2]": "مهمة أخرى 3"
         }
         
         # Create a simple context for demonstration
@@ -992,6 +1025,12 @@ if src_file and 'schema' in st.session_state:
                         for role_title, context in contexts.items():
                             st.write(f"🔍 **Processing role: {role_title}**")
                             st.write(f"Context structure: {list(context.keys())}")
+                            
+                            # Debug: Show some context values
+                            st.write("Sample context values:")
+                            sample_keys = list(context.keys())[:5]
+                            for key in sample_keys:
+                                st.write(f"  {key}: {context[key]}")
                             
                             # Generate filled document using stored template bytes
                             filled_doc = render_role(
