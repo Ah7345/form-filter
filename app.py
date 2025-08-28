@@ -467,17 +467,26 @@ def create_template_with_placeholders():
     header_cells[0].text = "الحقل"
     header_cells[1].text = "القيمة"
     
-    # Reference data rows
-    ref_fields = [
-        "المجموعة الرئيسية", "رمز المجموعة الرئيسية", "المجموعة الفرعية", "رمز المجموعة الفرعية",
-        "المجموعة الثانوية", "رمز المجموعة الثانوية", "مجموعة الوحدات", "رمز الوحدات",
-        "المهنة", "رمز المهنة", "موقع العمل", "المرتبة"
+    # Reference data rows - exactly as shown in the example
+    ref_data = [
+        ("المجموعة الرئيسية", "{{ref.المجموعة_الرئيسية}}"),
+        ("رمز المجموعة الرئيسية", "{{ref.code_المجموعة_الرئيسية}}"),
+        ("المجموعة الفرعية", "{{ref.المجموعة_الفرعية}}"),
+        ("رمز المجموعة الفرعية", "{{ref.code_المجموعة_الفرعية}}"),
+        ("المجموعة الثانوية", "{{ref.المجموعة_الثانوية}}"),
+        ("رمز المجموعة الثانوية", "{{ref.code_المجموعة_الثانوية}}"),
+        ("مجموعة الوحدات", "{{ref.مجموعة_الوحدات}}"),
+        ("رمز الوحدات", "{{ref.code_الوحدات}}"),
+        ("المهنة", "{{ref.المهنة}}"),
+        ("رمز المهنة", "{{ref.code_المهنة}}"),
+        ("موقع العمل", "{{ref.موقع_العمل}}"),
+        ("المرتبة", "{{ref.المرتبة}}")
     ]
     
-    for i, field in enumerate(ref_fields):
+    for i, (field, placeholder) in enumerate(ref_data):
         row_cells = ref_table.rows[i + 1].cells
         row_cells[0].text = field
-        row_cells[1].text = "{{ref." + field.lower().replace(" ", "_").replace("رمز_", "code_") + "}}"
+        row_cells[1].text = placeholder
     
     # Section 2: الملخص العام
     doc.add_heading("2- الملخص العام للمهنة", level=1)
@@ -527,9 +536,9 @@ def create_template_with_placeholders():
     for i in range(3):
         row_cells = levels_table.rows[i + 1].cells
         row_cells[0].text = "{{levels[" + str(i) + "].level}}"
-        row_cells[0].text = "{{levels[" + str(i) + "].code}}"
-        row_cells[0].text = "{{levels[" + str(i) + "].role}}"
-        row_cells[0].text = "{{levels[" + str(i) + "].progression}}"
+        row_cells[1].text = "{{levels[" + str(i) + "].code}}"
+        row_cells[2].text = "{{levels[" + str(i) + "].role}}"
+        row_cells[3].text = "{{levels[" + str(i) + "].progression}}"
     
     # Section 5: الجدارات
     doc.add_heading("5- الجدارات", level=1)
