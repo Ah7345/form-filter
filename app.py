@@ -616,7 +616,9 @@ with st.container():
         
         # Extract and display schema
         with st.spinner("جاري استخراج العناصر النائبة..."):
-            placeholders = extract_placeholders_from_docx(template_file.read())
+            # Store template bytes for later use
+            template_bytes = template_file.read()
+            placeholders = extract_placeholders_from_docx(template_bytes)
             schema = build_schema(placeholders)
             
             st.markdown('<div class="schema-section">', unsafe_allow_html=True)
@@ -638,9 +640,10 @@ with st.container():
             
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # Store schema in session state
+            # Store schema and template bytes in session state
             st.session_state.schema = schema
             st.session_state.placeholders = placeholders
+            st.session_state.template_bytes = template_bytes
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -668,6 +671,9 @@ if template_file and src_file and 'schema' in st.session_state:
         if st.button("ابدأ المعالجة", type="primary"):
             with st.spinner("جاري معالجة البيانات..."):
                 try:
+                    # Use stored template bytes from session state
+                    template_bytes = st.session_state.template_bytes
+                    
                     # Load data based on file type
                     if src_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                         # DOCX source file
@@ -691,9 +697,9 @@ if template_file and src_file and 'schema' in st.session_state:
                             # Fit context to template bounds
                             fitted_context = fit_to_template_bounds(context, st.session_state.schema)
                             
-                            # Generate filled document
+                            # Generate filled document using stored template bytes
                             filled_doc = render_role(
-                                template_file.read(),
+                                template_bytes,
                                 fitted_context
                             )
                             
