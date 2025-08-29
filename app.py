@@ -40,11 +40,17 @@ AR_FONT_BOLD_PATH = "fonts/NotoNaskhArabic-Bold.ttf"
 def get_openai_api_key():
     """Get OpenAI API key from environment or secrets"""
     try:
-        return os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY", "")
-    except:
+        # Try to get from Streamlit secrets first
+        if hasattr(st, 'secrets') and st.secrets:
+            api_key = st.secrets.get("OPENAI_API_KEY", "")
+            if api_key:
+                return api_key
+        
+        # Fallback to environment variable
         return os.getenv("OPENAI_API_KEY", "")
-
-OPENAI_API_KEY = get_openai_api_key()
+    except Exception as e:
+        # If there's any error with secrets, fall back to environment
+        return os.getenv("OPENAI_API_KEY", "")
 
 def register_arabic_fonts():
     """Register Arabic fonts for PDF generation"""
@@ -341,7 +347,8 @@ def extract_text_from_file(uploaded_file):
 def analyze_job_description_with_ai(text_content):
     """Use OpenAI to analyze job description and extract relevant information"""
     # Check if API key is available
-    if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here":
+    api_key = get_openai_api_key()
+    if not api_key or api_key == "your-api-key-here":
         st.error("❌ مفتاح API الخاص بـ OpenAI غير متوفر")
         st.info("💡 يرجى إضافة مفتاح API في متغيرات البيئة أو ملف Streamlit secrets")
         return None
@@ -421,7 +428,7 @@ RULES:
         status_text.text("🤖 جاري إرسال الطلب إلى OpenAI...")
         progress_bar.progress(40)
         
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = OpenAI(api_key=get_openai_api_key())
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -776,7 +783,7 @@ def auto_fill_form_with_ai(ai_analysis):
                             st.error("❌ لا يمكن العثور على النص الأصلي")
                             return
                         
-                        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+                        client = openai.OpenAI(api_key=get_openai_api_key())
                         retry_response = client.chat.completions.create(
                             model="gpt-3.5-turbo",
                             messages=[
@@ -2128,7 +2135,8 @@ def main():
                 st.info("📁 ارفع ملفاً لبدء التحليل")
     
     # API Key Setup Guide
-    if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here":
+    api_key = get_openai_api_key()
+    if not api_key or api_key == "your-api-key-here":
         st.markdown('<div class="subsection-header">🔑 إعداد مفتاح API</div>', unsafe_allow_html=True)
         st.warning("⚠️ مفتاح API الخاص بـ OpenAI غير متوفر")
         
