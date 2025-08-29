@@ -40,12 +40,8 @@ AR_FONT_BOLD_PATH = "fonts/NotoNaskhArabic-Bold.ttf"
 def get_openai_api_key():
     """Get OpenAI API key from environment or secrets"""
     try:
-        # Debug: Check what's available
-        st.write("🔍 Debug: Checking API key sources...")
-        
         # Try to get from Streamlit secrets first
         if hasattr(st, 'secrets') and st.secrets:
-            st.write("✅ Streamlit secrets available")
             try:
                 # Try different ways to access the secret
                 api_key = st.secrets.get("OPENAI_API_KEY", "")
@@ -56,31 +52,23 @@ def get_openai_api_key():
                     # Try direct access
                     api_key = getattr(st.secrets, "OPENAI_API_KEY", "")
                 
-                st.write(f"🔑 API Key from secrets: {'***' + api_key[-4:] if api_key else 'NOT FOUND'}")
                 if api_key and api_key != "your-api-key-here":
                     return api_key
-            except Exception as e:
-                st.write(f"❌ Error reading secrets: {e}")
-        else:
-            st.write("❌ Streamlit secrets not available")
+            except Exception:
+                pass
         
         # Fallback to environment variable
-        env_key = os.getenv("OPENAI_API_KEY", "")
-        st.write(f"🔑 API Key from env: {'***' + env_key[-4:] if env_key else 'NOT FOUND'}")
-        return env_key
-        
-    except Exception as e:
-        st.write(f"❌ General error: {e}")
-        # If there's any error with secrets, fall back to environment
+        return os.getenv("OPENAI_API_KEY", "")
+    except Exception:
         return os.getenv("OPENAI_API_KEY", "")
 
 def register_arabic_fonts():
     """Register Arabic fonts for PDF generation"""
     try:
-        # Check if font files exist
+                # Check if font files exist
         if not os.path.exists(AR_FONT_REGULAR_PATH) or not os.path.exists(AR_FONT_BOLD_PATH):
-            st.warning("⚠️ ملفات الخطوط العربية غير موجودة")
-            st.info("💡 سيتم استخدام خطوط النظام المتاحة")
+            st.warning("ملفات الخطوط العربية غير موجودة")
+            st.info("سيتم استخدام خطوط النظام المتاحة")
             return get_system_fallback_font()
         
         # Try to register the Noto Naskh Arabic fonts
@@ -128,7 +116,7 @@ def get_system_fallback_font():
 # Page configuration
 st.set_page_config(
     page_title="نظام بطاقة الوصف المهني",
-    page_icon="📋",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -713,7 +701,7 @@ def auto_fill_form_with_ai(ai_analysis):
                             st.error(f"❌ خطأ في حفظ الملف: {str(e)}")
                 
                 with col2:
-                    if st.button("📄 إنشاء تقرير PDF", key="ai_pdf_report"):
+                    if st.button("إنشاء تقرير PDF", key="ai_pdf_report"):
                         try:
                             with st.spinner("جاري إنشاء تقرير PDF..."):
                                 # Generate PDF with AI analysis
@@ -739,7 +727,7 @@ def auto_fill_form_with_ai(ai_analysis):
                             st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
                 
                 with col3:
-                    if st.button("📝 إنشاء تقرير DOCX", key="ai_docx_report"):
+                    if st.button("إنشاء تقرير DOCX", key="ai_docx_report"):
                         try:
                             with st.spinner("جاري إنشاء تقرير DOCX..."):
                                 # Generate DOCX with AI analysis
