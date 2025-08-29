@@ -2,7 +2,7 @@
 
 # 🚀 Script to deploy the app to GitHub for Streamlit Cloud deployment
 
-echo "🚀 Preparing to deploy Job Description Card System to GitHub..."
+echo "🚀 Preparing to deploy Job Description Card System to GitHub (form-filter repository)..."
 
 # Check if git is initialized
 if [ ! -d ".git" ]; then
