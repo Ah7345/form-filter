@@ -1,5 +1,6 @@
 [global]
 developmentMode = false
+mainFile = "app.py"
 
 [server]
 headless = true
