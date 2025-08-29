@@ -308,6 +308,12 @@ def extract_text_from_file(uploaded_file):
 
 def analyze_job_description_with_ai(text_content):
     """Use OpenAI to analyze job description and extract relevant information"""
+    # Check if API key is available
+    if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here":
+        st.error("❌ مفتاح API الخاص بـ OpenAI غير متوفر")
+        st.info("💡 يرجى إضافة مفتاح API في متغيرات البيئة أو ملف Streamlit secrets")
+        return None
+    
     try:
         # Show progress
         progress_bar = st.progress(0)
@@ -414,17 +420,16 @@ RULES:
         
         return result
         
-    except openai.AuthenticationError:
-        st.error("❌ خطأ في مصادقة OpenAI API. تأكد من صحة مفتاح API.")
-        return None
-    except openai.RateLimitError:
-        st.error("❌ تم تجاوز حد الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.")
-        return None
-    except openai.APIError as e:
-        st.error(f"❌ خطأ في API: {str(e)}")
-        return None
     except Exception as e:
-        st.error(f"❌ خطأ غير متوقع: {str(e)}")
+        error_msg = str(e)
+        if "authentication" in error_msg.lower() or "401" in error_msg:
+            st.error("❌ خطأ في مصادقة OpenAI API. تأكد من صحة مفتاح API.")
+        elif "rate limit" in error_msg.lower() or "429" in error_msg:
+            st.error("❌ تم تجاوز حد الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.")
+        elif "api" in error_msg.lower():
+            st.error(f"❌ خطأ في API: {error_msg}")
+        else:
+            st.error(f"❌ خطأ غير متوقع: {error_msg}")
         return None
 
 def auto_fill_form_with_ai(ai_analysis):
@@ -1765,6 +1770,24 @@ def main():
                             st.error("❌ فشل في استخراج النص من الملف")
             else:
                 st.info("📁 ارفع ملفاً لبدء التحليل")
+    
+    # API Key Setup Guide
+    if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here":
+        st.markdown('<div class="subsection-header">🔑 إعداد مفتاح API</div>', unsafe_allow_html=True)
+        st.warning("⚠️ مفتاح API الخاص بـ OpenAI غير متوفر")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**الطريقة الأولى: متغير البيئة**")
+            st.code("export OPENAI_API_KEY='your-api-key-here'", language="bash")
+            
+        with col2:
+            st.markdown("**الطريقة الثانية: Streamlit Secrets**")
+            st.code("cp .streamlit/secrets.toml.example .streamlit/secrets.toml", language="bash")
+            st.code("# ثم عدل الملف وأضف مفتاح API", language="bash")
+        
+        st.info("💡 بعد إعداد مفتاح API، أعد تشغيل التطبيق")
+        st.markdown("---")
     
     # Manual text input option
     st.markdown('<div class="subsection-header">أو أدخل النص يدوياً</div>', unsafe_allow_html=True)
