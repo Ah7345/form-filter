@@ -45,25 +45,53 @@ OPENAI_API_KEY = get_openai_api_key()
 def register_arabic_fonts():
     """Register Arabic fonts for PDF generation"""
     try:
+        # Check if font files exist
+        if not os.path.exists(AR_FONT_REGULAR_PATH) or not os.path.exists(AR_FONT_BOLD_PATH):
+            st.warning("⚠️ ملفات الخطوط العربية غير موجودة")
+            st.info("💡 سيتم استخدام خطوط النظام المتاحة")
+            return get_system_fallback_font()
+        
         # Try to register the Noto Naskh Arabic fonts
         pdfmetrics.registerFont(TTFont(AR_FONT_REGULAR, AR_FONT_REGULAR_PATH))
         pdfmetrics.registerFont(TTFont(AR_FONT_BOLD, AR_FONT_BOLD_PATH))
+        
+        st.success("✅ تم تسجيل الخطوط العربية بنجاح!")
         return True
+        
     except Exception as e:
         st.warning(f"⚠️ تحذير: لا يمكن تسجيل الخطوط العربية: {str(e)}")
-        st.info("💡 سيتم استخدام خط النظام الافتراضي مع دعم محدود للعربية")
+        st.info("💡 سيتم استخدام خطوط النظام المتاحة")
+        return get_system_fallback_font()
+
+def get_system_fallback_font():
+    """Get the best available system font for Arabic support"""
+    system_fonts = [
+        # macOS fonts
+        ('/System/Library/Fonts/Arial.ttf', 'Arial'),
+        ('/System/Library/Fonts/Arial Unicode MS.ttf', 'ArialUnicodeMS'),
+        ('/System/Library/Fonts/Helvetica.ttc', 'Helvetica'),
         
-        # Try to use system fonts that might support Arabic
+        # Linux fonts
+        ('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 'DejaVuSans'),
+        ('/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf', 'LiberationSans'),
+        
+        # Windows fonts (if running on Windows)
+        ('C:/Windows/Fonts/arial.ttf', 'Arial'),
+        ('C:/Windows/Fonts/arialuni.ttf', 'ArialUnicodeMS'),
+    ]
+    
+    for font_path, font_name in system_fonts:
         try:
-            # Try Arial which often supports Arabic
-            pdfmetrics.registerFont(TTFont('SystemArabic', '/System/Library/Fonts/Arial.ttf'))
-            return 'SystemArabic'
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont(font_name, font_path))
+                st.info(f"💡 تم استخدام خط النظام: {font_name}")
+                return font_name
         except:
-            try:
-                # Try Helvetica as last resort
-                return 'Helvetica'
-            except:
-                return 'Helvetica'
+            continue
+    
+    # Last resort - use default Helvetica
+    st.warning("⚠️ استخدام خط النظام: Helvetica")
+    return 'Helvetica'
 
 # Page configuration
 st.set_page_config(
@@ -800,7 +828,7 @@ def generate_pdf_report(form_data, ai_analysis=None):
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
-            fontName=AR_FONT_BOLD,
+            fontName=arabic_font_bold,
             fontSize=24,
             alignment=TA_CENTER,
             spaceAfter=30,
@@ -810,7 +838,7 @@ def generate_pdf_report(form_data, ai_analysis=None):
         subtitle_style = ParagraphStyle(
             'CustomSubtitle',
             parent=styles['Heading2'],
-            fontName=AR_FONT_REGULAR,
+            fontName=arabic_font,
             fontSize=14,
             alignment=TA_CENTER,
             spaceAfter=20,
@@ -820,7 +848,7 @@ def generate_pdf_report(form_data, ai_analysis=None):
         heading_style = ParagraphStyle(
             'CustomHeading',
             parent=styles['Heading2'],
-            fontName=AR_FONT_BOLD,
+            fontName=arabic_font_bold,
             fontSize=16,
             alignment=TA_RIGHT,
             spaceAfter=12,
@@ -832,9 +860,9 @@ def generate_pdf_report(form_data, ai_analysis=None):
         )
         
         subheading_style = ParagraphStyle(
-            'CustomSubheading',
+            'CustomSubtitle',
             parent=styles['Heading3'],
-            fontName=AR_FONT_BOLD,
+            fontName=arabic_font_bold,
             fontSize=13,
             alignment=TA_RIGHT,
             spaceAfter=8,
@@ -844,7 +872,7 @@ def generate_pdf_report(form_data, ai_analysis=None):
         normal_style = ParagraphStyle(
             'CustomNormal',
             parent=styles['Normal'],
-            fontName=AR_FONT_REGULAR,
+            fontName=arabic_font,
             fontSize=12,
             alignment=TA_RIGHT,
             spaceAfter=6
@@ -853,7 +881,7 @@ def generate_pdf_report(form_data, ai_analysis=None):
         highlight_style = ParagraphStyle(
             'CustomHighlight',
             parent=styles['Normal'],
-            fontName=AR_FONT_BOLD,
+            fontName=arabic_font_bold,
             fontSize=12,
             alignment=TA_RIGHT,
             textColor=colors.darkred,
@@ -904,7 +932,7 @@ def generate_pdf_report(form_data, ai_analysis=None):
             ('GRID', (0, 0), (-1, -1), 1, colors.darkblue),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightblue, colors.white]),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, -1), AR_FONT_REGULAR)
+            ('FONTNAME', (0, 0), (-1, -1), arabic_font)
         ]))
         story.append(ref_table)
         story.append(Spacer(1, 25))
@@ -972,11 +1000,11 @@ def generate_pdf_report(form_data, ai_analysis=None):
                 ('FONTSIZE', (0, 0), (-1, -1), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
-                ('GRID', (0, 0), (-1, -1), 1, colors.darkgreen),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightgreen, colors.white]),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, -1), AR_FONT_REGULAR)
+                            ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+            ('GRID', (0, 0), (-1, -1), 1, colors.darkgreen),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightgreen, colors.white]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), arabic_font)
             ]))
             story.append(level_table)
         else:
@@ -1099,11 +1127,11 @@ def generate_pdf_report(form_data, ai_analysis=None):
                 ('FONTSIZE', (0, 0), (-1, -1), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.lightcoral),
-                ('GRID', (0, 0), (-1, -1), 1, colors.darkred),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightcoral, colors.white]),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, -1), AR_FONT_REGULAR)
+                            ('BACKGROUND', (0, 1), (-1, -1), colors.lightcoral),
+            ('GRID', (0, 0), (-1, -1), 1, colors.darkred),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightcoral, colors.white]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), arabic_font)
             ]))
             story.append(kpi_table)
         else:
