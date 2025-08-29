@@ -33,18 +33,37 @@ AR_FONT_REGULAR_PATH = "fonts/NotoNaskhArabic-Regular.ttf"
 AR_FONT_BOLD_PATH = "fonts/NotoNaskhArabic-Bold.ttf"
 
 # OpenAI API configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY", "")
+def get_openai_api_key():
+    """Get OpenAI API key from environment or secrets"""
+    try:
+        return os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY", "")
+    except:
+        return os.getenv("OPENAI_API_KEY", "")
+
+OPENAI_API_KEY = get_openai_api_key()
 
 def register_arabic_fonts():
     """Register Arabic fonts for PDF generation"""
     try:
+        # Try to register the Noto Naskh Arabic fonts
         pdfmetrics.registerFont(TTFont(AR_FONT_REGULAR, AR_FONT_REGULAR_PATH))
         pdfmetrics.registerFont(TTFont(AR_FONT_BOLD, AR_FONT_BOLD_PATH))
         return True
     except Exception as e:
-        st.error(f"❌ خطأ في تسجيل الخطوط العربية: {str(e)}")
-        st.error("يرجى التأكد من وجود ملفات الخطوط في مجلد fonts/")
-        return False
+        st.warning(f"⚠️ تحذير: لا يمكن تسجيل الخطوط العربية: {str(e)}")
+        st.info("💡 سيتم استخدام خط النظام الافتراضي مع دعم محدود للعربية")
+        
+        # Try to use system fonts that might support Arabic
+        try:
+            # Try Arial which often supports Arabic
+            pdfmetrics.registerFont(TTFont('SystemArabic', '/System/Library/Fonts/Arial.ttf'))
+            return 'SystemArabic'
+        except:
+            try:
+                # Try Helvetica as last resort
+                return 'Helvetica'
+            except:
+                return 'Helvetica'
 
 # Page configuration
 st.set_page_config(
@@ -745,9 +764,22 @@ def generate_pdf_report(form_data, ai_analysis=None):
     """Generate a professional PDF report from form data and AI analysis"""
     try:
         # Check if fonts are available and register them
-        if not register_arabic_fonts():
-            st.error("❌ فشل في تسجيل الخطوط العربية. لا يمكن إنشاء PDF.")
-            return None
+        font_result = register_arabic_fonts()
+        if font_result is True:
+            # Use Noto Naskh Arabic fonts
+            arabic_font = AR_FONT_REGULAR
+            arabic_font_bold = AR_FONT_BOLD
+        else:
+            # Use fallback system font
+            arabic_font = font_result
+            arabic_font_bold = font_result
+            
+        # Show font status
+        if font_result is True:
+            st.success("✅ تم تسجيل الخطوط العربية بنجاح!")
+        else:
+            st.warning(f"⚠️ استخدام خط النظام: {font_result}")
+            st.info("💡 للحصول على دعم كامل للعربية، قم بتثبيت الخطوط يدوياً")
         
         # Create a BytesIO buffer for the PDF
         buffer = io.BytesIO()
