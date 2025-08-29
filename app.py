@@ -30,11 +30,11 @@ from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-# Font configuration - Bundle Arabic fonts
-AR_FONT = "Arabic"
-AR_FONT_BOLD = "Arabic-Bold"
-AR_FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "NotoNaskhArabic-Regular.ttf")
-AR_FONT_BOLD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "NotoNaskhArabic-Bold.ttf")
+# Font configuration
+AR_FONT_REGULAR = "NotoNaskhArabic-Regular"
+AR_FONT_BOLD = "NotoNaskhArabic-Bold"
+AR_FONT_REGULAR_PATH = "fonts/NotoNaskhArabic-Regular.ttf"
+AR_FONT_BOLD_PATH = "fonts/NotoNaskhArabic-Bold.ttf"
 
 # OpenAI API configuration
 def get_openai_api_key():
@@ -50,21 +50,52 @@ def register_arabic_fonts():
     """Register Arabic fonts for PDF generation"""
     try:
         # Check if font files exist
-        if not os.path.exists(AR_FONT_PATH) or not os.path.exists(AR_FONT_BOLD_PATH):
-            st.error("❌ ملفات الخطوط العربية غير موجودة")
-            st.info("💡 يرجى التأكد من وجود الخطوط في مجلد fonts/")
-            return False
+        if not os.path.exists(AR_FONT_REGULAR_PATH) or not os.path.exists(AR_FONT_BOLD_PATH):
+            st.warning("⚠️ ملفات الخطوط العربية غير موجودة")
+            st.info("💡 سيتم استخدام خطوط النظام المتاحة")
+            return get_system_fallback_font()
         
-        # Register the Noto Naskh Arabic fonts
-        pdfmetrics.registerFont(TTFont(AR_FONT, AR_FONT_PATH))
+        # Try to register the Noto Naskh Arabic fonts
+        pdfmetrics.registerFont(TTFont(AR_FONT_REGULAR, AR_FONT_REGULAR_PATH))
         pdfmetrics.registerFont(TTFont(AR_FONT_BOLD, AR_FONT_BOLD_PATH))
         
         st.success("✅ تم تسجيل الخطوط العربية بنجاح!")
         return True
         
     except Exception as e:
-        st.error(f"❌ خطأ في تسجيل الخطوط العربية: {str(e)}")
-        return False
+        st.warning(f"⚠️ تحذير: لا يمكن تسجيل الخطوط العربية: {str(e)}")
+        st.info("💡 سيتم استخدام خطوط النظام المتاحة")
+        return get_system_fallback_font()
+
+def get_system_fallback_font():
+    """Get the best available system font for Arabic support"""
+    system_fonts = [
+        # macOS fonts
+        ('/System/Library/Fonts/Arial.ttf', 'Arial'),
+        ('/System/Library/Fonts/Arial Unicode MS.ttf', 'ArialUnicodeMS'),
+        ('/System/Library/Fonts/Helvetica.ttc', 'Helvetica'),
+        
+        # Linux fonts
+        ('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 'DejaVuSans'),
+        ('/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf', 'LiberationSans'),
+        
+        # Windows fonts (if running on Windows)
+        ('C:/Windows/Fonts/arial.ttf', 'Arial'),
+        ('C:/Windows/Fonts/arialuni.ttf', 'ArialUnicodeMS'),
+    ]
+    
+    for font_path, font_name in system_fonts:
+        try:
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont(font_name, font_path))
+                st.info(f"💡 تم استخدام خط النظام: {font_name}")
+                return font_name
+        except:
+            continue
+    
+    # Last resort - use default Helvetica
+    st.warning("⚠️ استخدام خط النظام: Helvetica")
+    return 'Helvetica'
 
 # Page configuration
 st.set_page_config(
@@ -774,21 +805,23 @@ def auto_fill_form_with_ai(ai_analysis):
         st.error(f"❌ خطأ في ملء النموذج: {str(e)}")
         st.info("💡 يرجى المحاولة مرة أخرى")
 
-def ar(s: str) -> str:
-    """Arabic text reshaping helper - reshape only raw text, no inline tags"""
-    if not s or not isinstance(s, str):
-        return ""
+def process_arabic_text(text):
+    """Process Arabic text for proper display in PDF"""
+    if not text or not isinstance(text, str):
+        return text
+    
     try:
-        # reshape only raw text, no inline tags
-        return get_display(arabic_reshaper.reshape(s))
+        # Reshape Arabic text
+        reshaped_text = arabic_reshaper.reshape(text)
+        # Apply bidirectional algorithm for RTL text
+        bidi_text = get_display(reshaped_text)
+        return bidi_text
     except:
-        return s
+        return text
 
-def sanitize_input(value):
-    """Ensure None → "" and trim whitespace"""
-    if value is None:
-        return ""
-    return str(value).strip()
+def A(text):
+    """Short alias for process_arabic_text to keep code tidy"""
+    return process_arabic_text(text)
 
 def generate_docx_report(form_data, ai_analysis=None):
     """Generate a professional DOCX report from form data and AI analysis"""
@@ -1088,386 +1121,398 @@ def generate_docx_report(form_data, ai_analysis=None):
         st.error(f"❌ خطأ في إنشاء DOCX: {str(e)}")
         return None
 
-        st.error(f"❌ خطأ في إنشاء PDF: {str(e)}")
-        return None
-
 def generate_pdf_report(form_data, ai_analysis=None):
-    """Generate PDF matching client template exactly - نموذج بطاقة الوصف المهني"""
+    """Generate a professional PDF report from form data and AI analysis"""
     try:
-        # Register Arabic fonts - must succeed
-        if not register_arabic_fonts():
-            st.error("❌ لا يمكن إنشاء PDF بدون الخطوط العربية")
-            return None
+        # Check if fonts are available and register them
+        font_result = register_arabic_fonts()
+        if font_result is True:
+            # Use Noto Naskh Arabic fonts
+            arabic_font = AR_FONT_REGULAR
+            arabic_font_bold = AR_FONT_BOLD
+        else:
+            # Use fallback system font
+            arabic_font = font_result
+            arabic_font_bold = font_result
+            
+        # Show font status
+        if font_result is True:
+            st.success("✅ تم تسجيل الخطوط العربية بنجاح!")
+        else:
+            st.warning(f"⚠️ استخدام خط النظام: {font_result}")
+            st.info("💡 للحصول على دعم كامل للعربية، قم بتثبيت الخطوط يدوياً")
         
-        # Create PDF document with RTL margins
+        # Create a BytesIO buffer for the PDF
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer, 
-            pagesize=A4,
-            leftMargin=36,  # 25mm
-            rightMargin=36,  # 25mm
-            topMargin=36,    # 25mm
-            bottomMargin=36  # 25mm
-        )
+        
+        # Create the PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
         story = []
         
-        # Create base Arabic styles
+        # Get styles
         styles = getSampleStyleSheet()
         
-        # Base Arabic style
-        AR_Normal = ParagraphStyle(
-            'AR_Normal',
-            parent=styles['Normal'],
-            fontName=AR_FONT,
-            fontSize=11,
-            leading=14,
-            alignment=TA_RIGHT,
-            spaceAfter=8
-        )
-        
-        # Title style
-        AR_Title = ParagraphStyle(
-            'AR_Title',
+        # Create custom styles for Arabic text
+        title_style = ParagraphStyle(
+            'CustomTitle',
             parent=styles['Heading1'],
-            fontName=AR_FONT_BOLD,
-            fontSize=18,
-            leading=22,
+            fontName=arabic_font_bold,
+            fontSize=24,
             alignment=TA_CENTER,
-            spaceAfter=20
+            spaceAfter=30,
+            textColor=colors.darkblue
         )
         
-        # Section header style
-        AR_Section = ParagraphStyle(
-            'AR_Section',
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
             parent=styles['Heading2'],
-            fontName=AR_FONT_BOLD,
+            fontName=arabic_font,
             fontSize=14,
-            leading=18,
-            alignment=TA_RIGHT,
-            spaceAfter=12
-        )
-        
-        # Table header style
-        AR_Header = ParagraphStyle(
-            'AR_Header',
-            parent=styles['Normal'],
-            fontName=AR_FONT_BOLD,
-            fontSize=11,
-            leading=14,
             alignment=TA_CENTER,
-            spaceAfter=0
+            spaceAfter=20,
+            textColor=colors.gray
         )
         
-        # Build sections exactly as client template
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontName=arabic_font_bold,
+            fontSize=16,
+            alignment=TA_RIGHT,
+            spaceAfter=12,
+            textColor=colors.darkblue,
+            borderWidth=1,
+            borderColor=colors.darkblue,
+            borderPadding=5,
+            backColor=colors.lightblue
+        )
         
-        # 1. أوّلًا: البيانات المرجعية للمهنة
-        story.append(Paragraph(ar("أوّلًا: البيانات المرجعية للمهنة"), AR_Section))
-        story.append(Spacer(1, 8))
+        subheading_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading3'],
+            fontName=arabic_font_bold,
+            fontSize=13,
+            alignment=TA_RIGHT,
+            spaceAfter=8,
+            textColor=colors.black
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontName=arabic_font,
+            fontSize=12,
+            alignment=TA_RIGHT,
+            spaceAfter=6
+        )
+        
+        highlight_style = ParagraphStyle(
+            'CustomHighlight',
+            parent=styles['Normal'],
+            fontName=arabic_font_bold,
+            fontSize=12,
+            alignment=TA_RIGHT,
+            textColor=colors.darkred,
+            spaceAfter=6
+        )
+        
+        # Title
+        story.append(Paragraph(A("نظام بطاقة الوصف المهني"), title_style))
+        story.append(Paragraph("Professional Job Description Card System", subtitle_style))
+        story.append(Spacer(1, 30))
+        
+        # Add timestamp
+        from datetime import datetime
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        story.append(Paragraph(A(f"تاريخ الإنشاء: {current_time}"), normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Reference Data Section
+        story.append(Paragraph(A("أ‌- البيانات المرجعية للمهنة"), heading_style))
+        story.append(Spacer(1, 10))
         
         ref_data = form_data.get('ref_data', {})
         ref_table_data = [
-            [ar("المجموعة الرئيسية"), ar(sanitize_input(ref_data.get('main_group', '')))],
-            [ar("رمز المجموعة الرئيسية"), ar(sanitize_input(ref_data.get('main_group_code', '')))],
-            [ar("المجموعة الفرعية"), ar(sanitize_input(ref_data.get('sub_group', '')))],
-            [ar("رمز المجموعة الفرعية"), ar(sanitize_input(ref_data.get('sub_group_code', '')))],
-            [ar("المجموعة الثانوية"), ar(sanitize_input(ref_data.get('secondary_group', '')))],
-            [ar("رمز المجموعة الثانوية"), ar(sanitize_input(ref_data.get('secondary_group_code', '')))],
-            [ar("مجموعة الوحدات"), ar(sanitize_input(ref_data.get('unit_group', '')))],
-            [ar("رمز الوحدات"), ar(sanitize_input(ref_data.get('unit_group_code', '')))],
-            [ar("المهنة"), ar(sanitize_input(ref_data.get('job', '')))],
-            [ar("رمز المهنة"), ar(sanitize_input(ref_data.get('job_code', '')))],
-            [ar("موقع العمل"), ar(sanitize_input(ref_data.get('work_location', '')))],
-            [ar("المرتبة"), ar(sanitize_input(ref_data.get('grade', '')))]
+            [A("المجال"), A("القيمة")],
+            [A("المجموعة الرئيسية"), A(ref_data.get('main_group', ''))],
+            [A("رمز المجموعة الرئيسية"), A(ref_data.get('main_group_code', ''))],
+            [A("المجموعة الفرعية"), A(ref_data.get('sub_group', ''))],
+            [A("رمز المجموعة الفرعية"), A(ref_data.get('sub_group_code', ''))],
+            [A("المجموعة الثانوية"), A(ref_data.get('secondary_group', ''))],
+            [A("رمز المجموعة الثانوية"), A(ref_data.get('secondary_group_code', ''))],
+            [A("مجموعة الوحدات"), A(ref_data.get('unit_group', ''))],
+            [A("رمز الوحدات"), A(ref_data.get('unit_group_code', ''))],
+            [A("المهنة"), A(ref_data.get('job', ''))],
+            [A("رمز المهنة"), A(ref_data.get('job_code', ''))],
+            [A("موقع العمل"), A(ref_data.get('work_location', ''))],
+            [A("المرتبة"), A(ref_data.get('grade', ''))]
         ]
         
         ref_table = Table(ref_table_data, colWidths=[2.5*inch, 3.5*inch])
         ref_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F2F2F2')),
-            ('FONTNAME', (0, 0), (-1, -1), AR_FONT),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 15),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
+            ('GRID', (0, 0), (-1, -1), 1, colors.darkblue),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightblue, colors.white]),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.75, colors.HexColor('#C8C8C8')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F8F8')]),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6)
+            ('FONTNAME', (0, 0), (-1, -1), arabic_font)
         ]))
         story.append(ref_table)
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 25))
         
-        # 2. الملخص العام للمهنة
+        # Summary Section
         if form_data.get('summary'):
-            story.append(Paragraph(ar("الملخص العام للمهنة"), AR_Section))
-            story.append(Spacer(1, 8))
-            story.append(Paragraph(ar(sanitize_input(form_data.get('summary', ''))), AR_Normal))
-            story.append(Spacer(1, 20))
+            story.append(Paragraph(A("ب‌- ملخص الوظيفة"), heading_style))
+            story.append(Spacer(1, 10))
+            
+            # Add summary in a highlighted box
+            summary_text = form_data.get('summary', '')
+            if summary_text:
+                story.append(Paragraph(A(f"الملخص: {summary_text}"), highlight_style))
+            story.append(Spacer(1, 25))
         
-        # 3. قنوات التواصل
-        story.append(Paragraph(ar("قنوات التواصل"), AR_Section))
-        story.append(Spacer(1, 8))
+        # Communications Section
+        story.append(Paragraph(A("ج‌- قنوات التواصل"), heading_style))
+        story.append(Spacer(1, 10))
         
-        # جهات التواصل الداخلية
-        story.append(Paragraph(ar("جهات التواصل الداخلية / الغرض من التواصل"), AR_Header))
+        # Internal Communications
+        story.append(Paragraph(A("التواصل الداخلي:"), subheading_style))
         internal_comms = form_data.get('internal_communications', [])
         if internal_comms and any(any(comm.values()) for comm in internal_comms):
-            for comm in internal_comms:
+            for i, comm in enumerate(internal_comms, 1):
                 if any(comm.values()):
-                    story.append(Paragraph(ar(f"• {sanitize_input(comm.get('entity', ''))} - {sanitize_input(comm.get('purpose', ''))}"), AR_Normal))
+                    story.append(Paragraph(A(f"• {comm.get('entity', '')} - {comm.get('purpose', '')}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 15))
         
-        # جهات التواصل الخارجية
-        story.append(Paragraph(ar("جهات التواصل الخارجية / الغرض من التواصل"), AR_Header))
+        # External Communications
+        story.append(Paragraph(A("التواصل الخارجي:"), subheading_style))
         external_comms = form_data.get('external_communications', [])
         if external_comms and any(any(comm.values()) for comm in external_comms):
-            for comm in external_comms:
+            for i, comm in enumerate(external_comms, 1):
                 if any(comm.values()):
-                    story.append(Paragraph(ar(f"• {sanitize_input(comm.get('entity', ''))} - {sanitize_input(comm.get('purpose', ''))}"), AR_Normal))
+                    story.append(Paragraph(A(f"• {comm.get('entity', '')} - {comm.get('purpose', '')}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 25))
         
-        # 4. مستويات المهنة القياسية
-        story.append(Paragraph(ar("مستويات المهنة القياسية"), AR_Section))
-        story.append(Spacer(1, 8))
+        # Job Levels Section
+        story.append(Paragraph(A("د‌- مستويات الوظيفة"), heading_style))
+        story.append(Spacer(1, 10))
         
         job_levels = form_data.get('job_levels', [])
         if job_levels and any(any(level.values()) for level in job_levels):
-            level_table_data = [
-                [ar("مستوى المهنة القياسي"), ar("رمز المستوى المهني"), ar("الدور المهني"), ar("التدرج المهني (المرتبة)")]
-            ]
-            
+            level_table_data = [[A("المستوى"), A("الرمز"), A("الدور"), A("التقدم")]]
             for level in job_levels:
                 if any(level.values()):
                     level_table_data.append([
-                        ar(sanitize_input(level.get('level', ''))),
-                        ar(sanitize_input(level.get('code', ''))),
-                        ar(sanitize_input(level.get('role', ''))),
-                        ar(sanitize_input(level.get('progression', '')))
+                        A(level.get('level', '')),
+                        A(level.get('code', '')),
+                        A(level.get('role', '')),
+                        A(level.get('progression', ''))
                     ])
             
-            level_table = Table(level_table_data, colWidths=[1.2*inch, 1.2*inch, 1.8*inch, 1.8*inch])
+            level_table = Table(level_table_data, colWidths=[1.5*inch, 1*inch, 2*inch, 1.5*inch])
             level_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F2F2F2')),
-                ('FONTNAME', (0, 0), (-1, -1), AR_FONT),
-                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('GRID', (0, 0), (-1, -1), 0.75, colors.HexColor('#C8C8C8')),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F8F8')]),
+                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 6)
+                            ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+            ('GRID', (0, 0), (-1, -1), 1, colors.darkgreen),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightgreen, colors.white]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), arabic_font)
             ]))
             story.append(level_table)
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 25))
         
-        # 5. الجدارات
-        story.append(Paragraph(ar("الجدارات"), AR_Section))
-        story.append(Spacer(1, 8))
+        # Competencies Section
+        story.append(Paragraph(A("هـ- الكفاءات المطلوبة"), heading_style))
+        story.append(Spacer(1, 10))
         
-        # الجدارات السلوكية
-        story.append(Paragraph(ar("الجدارات السلوكية"), AR_Header))
+        # Behavioral Competencies
+        story.append(Paragraph(A("الكفاءات السلوكية:"), subheading_style))
         behavioral_comps = form_data.get('behavioral_competencies', [])
         if behavioral_comps and any(any(comp.values()) for comp in behavioral_comps):
-            for comp in behavioral_comps:
+            for i, comp in enumerate(behavioral_comps, 1):
                 if any(comp.values()):
-                    story.append(Paragraph(ar(f"• {sanitize_input(comp.get('name', ''))} - مستوى الإتقان: {sanitize_input(comp.get('level', ''))}"), AR_Normal))
+                    story.append(Paragraph(A(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 15))
         
-        # الجدارات الأساسية
-        story.append(Paragraph(ar("الجدارات الأساسية"), AR_Header))
+        # Core Competencies
+        story.append(Paragraph(A("الكفاءات الأساسية:"), subheading_style))
         core_comps = form_data.get('core_competencies', [])
         if core_comps and any(any(comp.values()) for comp in core_comps):
-            for comp in core_comps:
+            for i, comp in enumerate(core_comps, 1):
                 if any(comp.values()):
-                    story.append(Paragraph(ar(f"• {sanitize_input(comp.get('name', ''))} - مستوى الإتقان: {sanitize_input(comp.get('level', ''))}"), AR_Normal))
+                    story.append(Paragraph(A(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 15))
         
-        # الجدارات القيادية
-        story.append(Paragraph(ar("الجدارات القيادية"), AR_Header))
+        # Leadership Competencies
+        story.append(Paragraph(A("الكفاءات القيادية:"), subheading_style))
         leadership_comps = form_data.get('leadership_competencies', [])
         if leadership_comps and any(any(comp.values()) for comp in leadership_comps):
-            for comp in leadership_comps:
+            for i, comp in enumerate(leadership_comps, 1):
                 if any(comp.values()):
-                    story.append(Paragraph(ar(f"• {sanitize_input(comp.get('name', ''))} - مستوى الإتقان: {sanitize_input(comp.get('level', ''))}"), AR_Normal))
+                    story.append(Paragraph(A(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 15))
         
-        # الجدارات الفنية
-        story.append(Paragraph(ar("الجدارات الفنية"), AR_Header))
+        # Technical Competencies
+        story.append(Paragraph(A("الكفاءات التقنية:"), subheading_style))
         technical_comps = form_data.get('technical_competencies', [])
         if technical_comps and any(any(comp.values()) for comp in technical_comps):
-            for comp in technical_comps:
+            for i, comp in enumerate(technical_comps, 1):
                 if any(comp.values()):
-                    story.append(Paragraph(ar(f"• {sanitize_input(comp.get('name', ''))} - مستوى الإتقان: {sanitize_input(comp.get('level', ''))}"), AR_Normal))
+                    story.append(Paragraph(A(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 25))
         
-        # 6. نموذج الوصف الفعلي
-        story.append(Paragraph(ar("نموذج الوصف الفعلي"), AR_Section))
-        story.append(Spacer(1, 8))
+        # Tasks Section
+        story.append(Paragraph(A("و‌- المهام"), heading_style))
+        story.append(Spacer(1, 10))
         
-        # المهام القيادية/الإشرافية
-        story.append(Paragraph(ar("المهام القيادية/الإشرافية"), AR_Header))
+        # Leadership Tasks
+        story.append(Paragraph(A("المهام القيادية:"), subheading_style))
         leadership_tasks = form_data.get('leadership_tasks', [])
         if leadership_tasks and any(task for task in leadership_tasks):
             for i, task in enumerate(leadership_tasks, 1):
                 if task:
-                    story.append(Paragraph(ar(f"{i}. {sanitize_input(task)}"), AR_Normal))
+                    story.append(Paragraph(A(f"{i}. {task}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 15))
         
-        # المهام التخصصية
-        story.append(Paragraph(ar("المهام التخصصية"), AR_Header))
+        # Specialized Tasks
+        story.append(Paragraph(A("المهام المتخصصة:"), subheading_style))
         specialized_tasks = form_data.get('specialized_tasks', [])
         if specialized_tasks and any(task for task in specialized_tasks):
             for i, task in enumerate(specialized_tasks, 1):
                 if task:
-                    story.append(Paragraph(ar(f"{i}. {sanitize_input(task)}"), AR_Normal))
+                    story.append(Paragraph(A(f"{i}. {task}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 15))
         
-        # مهام أخرى إضافية
-        story.append(Paragraph(ar("مهام أخرى إضافية"), AR_Header))
+        # Other Tasks
+        story.append(Paragraph(A("المهام الأخرى:"), subheading_style))
         other_tasks = form_data.get('other_tasks', [])
         if other_tasks and any(task for task in other_tasks):
             for i, task in enumerate(other_tasks, 1):
                 if task:
-                    story.append(Paragraph(ar(f"{i}. {sanitize_input(task)}"), AR_Normal))
+                    story.append(Paragraph(A(f"{i}. {task}"), normal_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات"), AR_Normal))
+            story.append(Paragraph(A("لا توجد بيانات"), normal_style))
         
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 25))
         
-        # 7. الجدارات السلوكية والفنية (3-column tables)
-        story.append(Paragraph(ar("الجدارات السلوكية والفنية"), AR_Section))
-        story.append(Spacer(1, 8))
-        
-        # Behavioral competencies table
-        behavioral_table_data = [
-            [ar("الرقم"), ar("الجدارة"), ar("مستوى الإتقان")]
-        ]
-        
-        behavioral_table = form_data.get('behavioral_table', [])
-        for i in range(5):  # Exactly 5 rows as per template
-            if i < len(behavioral_table) and any(behavioral_table[i].values()):
-                behavioral_table_data.append([
-                    str(i + 1),
-                    ar(sanitize_input(behavioral_table[i].get('name', ''))),
-                    ar(sanitize_input(behavioral_table[i].get('level', '')))
-                ])
-            else:
-                behavioral_table_data.append([str(i + 1), "", ""])
-        
-        behavioral_table_obj = Table(behavioral_table_data, colWidths=[0.8*inch, 2.5*inch, 2.7*inch])
-        behavioral_table_obj.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F2F2F2')),
-            ('FONTNAME', (0, 0), (-1, -1), AR_FONT),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.75, colors.HexColor('#C8C8C8')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F8F8')]),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6)
-        ]))
-        story.append(behavioral_table_obj)
-        story.append(Spacer(1, 20))
-        
-        # Technical competencies table
-        story.append(Paragraph(ar("الجدارات الفنية"), AR_Header))
-        technical_table_data = [
-            [ar("الرقم"), ar("الجدارة"), ar("مستوى الإتقان")]
-        ]
-        
-        technical_table = form_data.get('technical_table', [])
-        for i in range(5):  # Exactly 5 rows as per template
-            if i < len(technical_table) and any(technical_table[i].values()):
-                technical_table_data.append([
-                    str(i + 1),
-                    ar(sanitize_input(technical_table[i].get('name', ''))),
-                    ar(sanitize_input(technical_table[i].get('level', '')))
-                ])
-            else:
-                technical_table_data.append([str(i + 1), "", ""])
-        
-        technical_table_obj = Table(technical_table_data, colWidths=[0.8*inch, 2.5*inch, 2.7*inch])
-        technical_table_obj.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F2F2F2')),
-            ('FONTNAME', (0, 0), (-1, -1), AR_FONT),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.75, colors.HexColor('#C8C8C8')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F8F8')]),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6)
-        ]))
-        story.append(technical_table_obj)
-        story.append(Spacer(1, 20))
-        
-        # 8. إدارة الأداء المهني
-        story.append(Paragraph(ar("إدارة الأداء المهني"), AR_Section))
-        story.append(Spacer(1, 8))
-        
-        kpi_table_data = [
-            [ar("الرقم"), ar("مؤشرات الأداء الرئيسية"), ar("طريقة القياس")]
-        ]
+        # KPIs Section
+        story.append(Paragraph(A("ز‌- مؤشرات الأداء الرئيسية"), heading_style))
+        story.append(Spacer(1, 10))
         
         kpis = form_data.get('kpis', [])
-        for i in range(4):  # Exactly 4 rows as per template
-            if i < len(kpis) and any(kpis[i].values()):
-                kpi_table_data.append([
-                    str(i + 1),
-                    ar(sanitize_input(kpis[i].get('metric', ''))),
-                    ar(sanitize_input(kpis[i].get('measure', '')))
-                ])
-            else:
-                kpi_table_data.append([str(i + 1), "", ""])
-        
-        kpi_table = Table(kpi_table_data, colWidths=[0.8*inch, 2.5*inch, 2.7*inch])
-        kpi_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F2F2F2')),
-            ('FONTNAME', (0, 0), (-1, -1), AR_FONT),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        if kpis and any(any(kpi.values()) for kpi in kpis):
+            kpi_table_data = [[A("الرقم"), A("المؤشر"), A("القياس")]]
+            for kpi in kpis:
+                if any(kpi.values()):
+                    kpi_table_data.append([
+                        str(kpi.get('number', '')),
+                        A(kpi.get('metric', '')),
+                        A(kpi.get('measure', ''))
+                    ])
+            
+            kpi_table = Table(kpi_table_data, colWidths=[0.5*inch, 2.5*inch, 2*inch])
+            kpi_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkred),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                            ('BACKGROUND', (0, 1), (-1, -1), colors.lightcoral),
+            ('GRID', (0, 0), (-1, -1), 1, colors.darkred),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightcoral, colors.white]),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.75, colors.HexColor('#C8C8C8')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F8F8')]),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6)
-        ]))
-        story.append(kpi_table)
+            ('FONTNAME', (0, 0), (-1, -1), arabic_font)
+            ]))
+            story.append(kpi_table)
+        else:
+            story.append(Paragraph(process_arabic_text("لا توجد بيانات"), normal_style))
+        
+        # AI Analysis Section (if available)
+        if ai_analysis:
+            story.append(PageBreak())
+            story.append(Paragraph(A("تحليل الذكاء الاصطناعي"), title_style))
+            story.append(Spacer(1, 20))
+            
+            # Show AI analysis in a formatted way
+            try:
+                ai_data = json.loads(ai_analysis)
+                story.append(Paragraph(A("ملخص التحليل:"), heading_style))
+                story.append(Spacer(1, 10))
+                
+                # Show key insights from AI
+                if 'summary' in ai_data and ai_data['summary']:
+                    story.append(Paragraph(A(f"الملخص: {ai_data['summary']}"), normal_style))
+                    story.append(Spacer(1, 10))
+                
+                # Show extracted competencies count
+                total_competencies = 0
+                for comp_type in ['behavioral_competencies', 'core_competencies', 'leadership_competencies', 'technical_competencies']:
+                    if comp_type in ai_data:
+                        count = len([c for c in ai_data[comp_type] if any(c.values())])
+                        total_competencies += count
+                
+                if total_competencies > 0:
+                    story.append(Paragraph(A(f"إجمالي الكفاءات المستخرجة: {total_competencies}"), highlight_style))
+                    story.append(Spacer(1, 10))
+                
+                # Show tasks count
+                total_tasks = 0
+                for task_type in ['leadership_tasks', 'specialized_tasks', 'other_tasks']:
+                    if task_type in ai_data:
+                        count = len([t for t in ai_data[task_type] if t])
+                        total_tasks += count
+                
+                if total_tasks > 0:
+                    story.append(Paragraph(A(f"إجمالي المهام المستخرجة: {total_tasks}"), highlight_style))
+                
+            except json.JSONDecodeError:
+                story.append(Paragraph(A("تحليل نصي:"), heading_style))
+                story.append(Paragraph(A(ai_analysis[:1000] + "..." if len(ai_analysis) > 1000 else ai_analysis), normal_style))
+        
+        # Add footer
+        story.append(Spacer(1, 30))
+        story.append(Paragraph("─" * 50, normal_style))
+        story.append(Spacer(1, 10))
+        story.append(Paragraph(A("تم إنشاء هذا التقرير بواسطة نظام بطاقة الوصف المهني"), normal_style))
+        story.append(Paragraph("Powered by AI-Powered Job Description System", normal_style))
         
         # Build the PDF
         doc.build(story)
@@ -2089,15 +2134,17 @@ def main():
         
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("**الطريقة الأولى: متغير البيئة**")
+            st.markdown("**التطوير المحلي:**")
             st.code("export OPENAI_API_KEY='your-api-key-here'", language="bash")
+            st.code("streamlit run app.py", language="bash")
             
         with col2:
-            st.markdown("**الطريقة الثانية: Streamlit Secrets**")
-            st.code("cp .streamlit/secrets.toml.example .streamlit/secrets.toml", language="bash")
-            st.code("# ثم عدل الملف وأضف مفتاح API", language="bash")
+            st.markdown("**النشر على Streamlit Cloud:**")
+            st.markdown("1. ارفع الكود إلى GitHub")
+            st.markdown("2. اربط GitHub بـ Streamlit Cloud")
+            st.markdown("3. أضف API key في Streamlit Cloud secrets")
         
-        st.info("💡 بعد إعداد مفتاح API، أعد تشغيل التطبيق")
+        st.info("💡 للحصول على دليل النشر الكامل، راجع README.md")
         st.markdown("---")
     
     # Manual text input option

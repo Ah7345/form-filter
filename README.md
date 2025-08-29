@@ -152,6 +152,24 @@ ls -la fonts/*.ttf
 # Ensure files are readable
 ```
 
+## 🌐 Deployment
+
+### **Streamlit Cloud Deployment**
+
+For complete deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+### **Quick Steps:**
+1. **Push code to GitHub**
+2. **Go to** [share.streamlit.io](https://share.streamlit.io/deploy)
+3. **Connect GitHub to Streamlit Cloud**
+4. **Add API key in Streamlit Cloud Secrets**
+
+### **Deployment Benefits:**
+- ✅ **Available online** 24/7
+- ✅ **Accessible from any device**
+- ✅ **Easy sharing** with others
+- ✅ **Automatic updates** from GitHub
+
 ## 🛡️ Security
 
 - **No Hardcoded Keys**: API keys are read from environment or secrets
