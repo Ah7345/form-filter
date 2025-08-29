@@ -11,7 +11,7 @@ from openai import OpenAI
 # File processing
 import PyPDF2
 import docx
-from docx_generator import generate_docx_report
+from docx_generator import generate_docx_report as generate_docx_from_module
 
 # PDF generation
 from reportlab.lib.pagesizes import A4
@@ -673,8 +673,20 @@ def process_arabic_text(text):
 def A(text):
     """Short alias for process_arabic_text to keep code tidy"""
     return process_arabic_text(text)
-        return docx_bytes.getvalue()
-        
+
+def generate_docx_report(form_data, ai_analysis=None):
+    """Generate a professional DOCX form template from form data"""
+    # DOCX generation is now handled by docx_generator.py module
+    try:
+        doc = generate_docx_from_module(form_data)
+        if doc:
+            # Save the document to bytes
+            docx_bytes = io.BytesIO()
+            doc.save(docx_bytes)
+            docx_bytes.seek(0)
+            return docx_bytes.getvalue()
+        else:
+            return None
     except Exception as e:
         st.error(f"خطأ في إنشاء التقرير DOCX: {str(e)}")
         return None
