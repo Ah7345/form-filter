@@ -1,3 +1,2 @@
-fonts-noto-naskh-arabic
 libfreetype6
 libharfbuzz0b
