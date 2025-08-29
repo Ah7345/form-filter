@@ -59,6 +59,8 @@ Create `.streamlit/secrets.toml`:
 OPENAI_API_KEY = "your-api-key-here"
 ```
 
+**⚠️ Security Note**: Never commit your actual API key to the repository. The `.streamlit/secrets.toml` file is already in `.gitignore` to prevent accidental commits.
+
 ### 5. Run the Application
 
 ```bash
