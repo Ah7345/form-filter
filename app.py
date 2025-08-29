@@ -472,13 +472,13 @@ RULES:
     except Exception as e:
         error_msg = str(e)
         if "authentication" in error_msg.lower() or "401" in error_msg:
-            st.error("❌ خطأ في مصادقة OpenAI API. تأكد من صحة مفتاح API.")
+                            st.error("خطأ في مصادقة OpenAI API. تأكد من صحة مفتاح API.")
         elif "rate limit" in error_msg.lower() or "429" in error_msg:
-            st.error("❌ تم تجاوز حد الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.")
+                            st.error("تم تجاوز حد الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.")
         elif "api" in error_msg.lower():
-            st.error(f"❌ خطأ في API: {error_msg}")
+                            st.error(f"خطأ في API: {error_msg}")
         else:
-            st.error(f"❌ خطأ غير متوقع: {error_msg}")
+                            st.error(f"خطأ غير متوقع: {error_msg}")
         return None
 
 def auto_fill_form_with_ai(ai_analysis):
@@ -490,23 +490,19 @@ def auto_fill_form_with_ai(ai_analysis):
                 parsed_data = json.loads(ai_analysis)
                 
                 # Show what was extracted
-                st.success("✅ تم تحليل النص بنجاح! جاري ملء النموذج...")
+                st.success("تم تحليل النص بنجاح! جاري ملء النموذج...")
                 
                 # Show raw AI response first
-                with st.expander("🔍 الرد الخام من AI", expanded=False):
+                with st.expander("الرد الخام من AI", expanded=False):
                     st.code(ai_analysis, language="json")
                 
                 # Display extracted information in a nice format
-                with st.expander("📊 المعلومات المستخرجة من AI", expanded=True):
-                    # Show raw JSON first
-                    st.subheader("📄 النص الكامل للتحليل")
-                    st.json(parsed_data)
-                    
+                with st.expander("المعلومات المستخرجة من AI", expanded=True):
                     st.markdown("---")
                     
                     # Show structured information
                     if 'ref_data' in parsed_data:
-                        st.subheader("🏷️ البيانات المرجعية")
+                        st.subheader("البيانات المرجعية")
                         ref_data = parsed_data['ref_data']
                         cols = st.columns(2)
                         for i, (key, value) in enumerate(ref_data.items()):
@@ -515,71 +511,71 @@ def auto_fill_form_with_ai(ai_analysis):
                                     st.metric(label=key, value=value)
                     
                     if 'summary' in parsed_data and parsed_data['summary']:
-                        st.subheader("📝 ملخص الوظيفة")
+                        st.subheader("ملخص الوظيفة")
                         st.info(parsed_data['summary'])
                     
                     if 'internal_communications' in parsed_data:
-                        st.subheader("🏢 قنوات التواصل الداخلية")
+                        st.subheader("قنوات التواصل الداخلية")
                         for comm in parsed_data['internal_communications']:
                             if comm.get('entity') or comm.get('purpose'):
                                 st.write(f"• **{comm.get('entity', '')}** - {comm.get('purpose', '')}")
                     
                     if 'external_communications' in parsed_data:
-                        st.subheader("🌐 قنوات التواصل الخارجية")
+                        st.subheader("قنوات التواصل الخارجية")
                         for comm in parsed_data['external_communications']:
                             if comm.get('entity') or comm.get('purpose'):
                                 st.write(f"• **{comm.get('entity', '')}** - {comm.get('purpose', '')}")
                     
                     if 'job_levels' in parsed_data:
-                        st.subheader("📊 مستويات الوظيفة")
+                        st.subheader("مستويات الوظيفة")
                         for level in parsed_data['job_levels']:
                             if any(level.values()):
                                 st.write(f"• **{level.get('level', '')}** - {level.get('role', '')} - {level.get('progression', '')}")
                     
                     if 'behavioral_competencies' in parsed_data:
-                        st.subheader("🧠 الكفاءات السلوكية")
+                        st.subheader("الكفاءات السلوكية")
                         for comp in parsed_data['behavioral_competencies']:
                             if any(comp.values()):
                                 st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
                     
                     if 'core_competencies' in parsed_data:
-                        st.subheader("⭐ الكفاءات الأساسية")
+                        st.subheader("الكفاءات الأساسية")
                         for comp in parsed_data['core_competencies']:
                             if any(comp.values()):
                                 st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
                     
                     if 'leadership_competencies' in parsed_data:
-                        st.subheader("👑 الكفاءات القيادية")
+                        st.subheader("الكفاءات القيادية")
                         for comp in parsed_data['leadership_competencies']:
                             if any(comp.values()):
                                 st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
                     
                     if 'technical_competencies' in parsed_data:
-                        st.subheader("🔧 الكفاءات التقنية")
+                        st.subheader("الكفاءات التقنية")
                         for comp in parsed_data['technical_competencies']:
                             if any(comp.values()):
                                 st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
                     
                     if 'leadership_tasks' in parsed_data:
-                        st.subheader("🎯 المهام القيادية")
+                        st.subheader("المهام القيادية")
                         for task in parsed_data['leadership_tasks']:
                             if task:
                                 st.write(f"• {task}")
                     
                     if 'specialized_tasks' in parsed_data:
-                        st.subheader("⚙️ المهام المتخصصة")
+                        st.subheader("المهام المتخصصة")
                         for task in parsed_data['specialized_tasks']:
                             if task:
                                 st.write(f"• {task}")
                     
                     if 'other_tasks' in parsed_data:
-                        st.subheader("📋 المهام الأخرى")
+                        st.subheader("المهام الأخرى")
                         for task in parsed_data['other_tasks']:
                             if task:
                                 st.write(f"• {task}")
                     
                     if 'kpis' in parsed_data:
-                        st.subheader("📈 مؤشرات الأداء الرئيسية")
+                        st.subheader("مؤشرات الأداء الرئيسية")
                         for kpi in parsed_data['kpis']:
                             if any(kpi.values()):
                                 st.write(f"• **{kpi.get('metric', '')}** - {kpi.get('measure', '')}")
@@ -616,14 +612,14 @@ def auto_fill_form_with_ai(ai_analysis):
                 if 'kpis' in parsed_data:
                     st.session_state.form_data['kpis'] = parsed_data['kpis']
                 
-                st.success("✅ تم ملء النموذج تلقائياً باستخدام تحليل AI!")
-                st.info("💡 يمكنك الآن مراجعة وتعديل البيانات حسب الحاجة")
+                st.success("تم ملء النموذج تلقائياً باستخدام تحليل AI!")
+                st.info("يمكنك الآن مراجعة وتعديل البيانات حسب الحاجة")
                 
                 # Store AI analysis for PDF generation
                 st.session_state['last_ai_analysis'] = ai_analysis
                 
                 # Show summary of what was filled
-                st.markdown("### 📋 ملخص ما تم ملؤه:")
+                st.markdown("### ملخص ما تم ملؤه:")
                 summary_items = []
                 if 'ref_data' in parsed_data:
                     filled_refs = sum(1 for v in parsed_data['ref_data'].values() if v)
@@ -720,11 +716,11 @@ def auto_fill_form_with_ai(ai_analysis):
                                         file_name=filename,
                                         mime="application/pdf"
                                     )
-                                    st.success(f"✅ تم إنشاء التقرير بنجاح!")
+                                    st.success(f"تم إنشاء التقرير بنجاح!")
                                 else:
-                                    st.error("❌ فشل في إنشاء التقرير PDF")
+                                    st.error("فشل في إنشاء التقرير PDF")
                         except Exception as e:
-                            st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                            st.error(f"خطأ في إنشاء التقرير: {str(e)}")
                 
                 with col3:
                     if st.button("إنشاء تقرير DOCX", key="ai_docx_report"):
@@ -741,31 +737,31 @@ def auto_fill_form_with_ai(ai_analysis):
                                     
                                     # Download button
                                     st.download_button(
-                                        label="📥 تحميل التقرير DOCX",
+                                        label="تحميل التقرير DOCX",
                                         data=docx_content,
                                         file_name=filename,
                                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                     )
-                                    st.success(f"✅ تم إنشاء التقرير DOCX بنجاح!")
+                                    st.success(f"تم إنشاء التقرير DOCX بنجاح!")
                                 else:
-                                    st.error("❌ فشل في إنشاء التقرير DOCX")
+                                    st.error("فشل في إنشاء التقرير DOCX")
                         except Exception as e:
-                            st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                            st.error(f"خطأ في إنشاء التقرير: {str(e)}")
                 
                 st.rerun()
                 
             except json.JSONDecodeError as e:
-                st.error(f"❌ خطأ في تحليل JSON: {str(e)}")
-                st.warning("⚠️ لم يتمكن AI من إرجاع بيانات منظمة. سيتم عرض التحليل النصي.")
+                st.error(f"خطأ في تحليل JSON: {str(e)}")
+                st.warning("لم يتمكن AI من إرجاع بيانات منظمة. سيتم عرض التحليل النصي.")
                 st.text_area("تحليل AI:", value=ai_analysis, height=200)
-                st.info("💡 حاول مرة أخرى أو استخدم نصاً أوضح")
+                st.info("حاول مرة أخرى أو استخدم نصاً أوضح")
                 
                 # Debug: Show what AI actually returned
-                st.markdown("### 🔍 تصحيح الأخطاء:")
+                st.markdown("### تصحيح الأخطاء:")
                 st.code(f"AI Response: {ai_analysis[:500]}...", language="text")
                 
                 # Offer retry with simplified prompt
-                if st.button("🔄 إعادة المحاولة مع تلميح مبسط", key="retry_simple"):
+                if st.button("إعادة المحاولة مع تلميح مبسط", key="retry_simple"):
                     st.info("جاري إعادة المحاولة مع تلميح مبسط...")
                     simple_prompt = """Return ONLY a valid JSON object with this structure:
 {
@@ -790,7 +786,7 @@ def auto_fill_form_with_ai(ai_analysis):
                         # Get the original text from session state
                         original_text = st.session_state.get('last_analyzed_text', '')
                         if not original_text:
-                            st.error("❌ لا يمكن العثور على النص الأصلي")
+                            st.error("لا يمكن العثور على النص الأصلي")
                             return
                         
                         client = openai.OpenAI(api_key=get_openai_api_key())
@@ -808,19 +804,19 @@ def auto_fill_form_with_ai(ai_analysis):
                         if retry_result.startswith('```'):
                             retry_result = retry_result.replace('```json', '').replace('```', '').strip()
                         
-                        st.success("✅ تم إعادة المحاولة!")
+                        st.success("تم إعادة المحاولة!")
                         auto_fill_form_with_ai(retry_result)
                         
                     except Exception as retry_e:
-                        st.error(f"❌ فشل في إعادة المحاولة: {str(retry_e)}")
+                        st.error(f"فشل في إعادة المحاولة: {str(retry_e)}")
         else:
-            st.warning("⚠️ لم يتمكن AI من إرجاع بيانات منظمة. سيتم عرض التحليل النصي.")
+            st.warning("لم يتمكن AI من إرجاع بيانات منظمة. سيتم عرض التحليل النصي.")
             st.text_area("تحليل AI:", value=ai_analysis, height=200)
-            st.info("💡 حاول مرة أخرى أو استخدم نصاً أوضح")
+            st.info("حاول مرة أخرى أو استخدم نصاً أوضح")
             
     except Exception as e:
-        st.error(f"❌ خطأ في ملء النموذج: {str(e)}")
-        st.info("💡 يرجى المحاولة مرة أخرى")
+        st.error(f"خطأ في ملء النموذج: {str(e)}")
+        st.info("يرجى المحاولة مرة أخرى")
 
 def process_arabic_text(text):
     """Process Arabic text for proper display in PDF"""
@@ -2098,75 +2094,8 @@ def main():
     st.markdown('<div class="form-header">نظام بطاقة الوصف المهني</div>', unsafe_allow_html=True)
     
     # File Upload and AI Analysis Section
-    st.markdown('<div class="section-header">📁 رفع الملفات والتحليل الذكي</div>', unsafe_allow_html=True)
-    
-    with st.container():
-        st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            uploaded_file = st.file_uploader(
-                "اختر ملف الوصف الوظيفي (PDF, DOCX, TXT)",
-                type=['pdf', 'docx', 'txt'],
-                help="يمكنك رفع ملف PDF أو Word أو نصي يحتوي على الوصف الوظيفي"
-            )
-        
-        with col2:
-            if uploaded_file is not None:
-                st.markdown(f"**الملف المرفوع:** {uploaded_file.name}")
-                st.markdown(f"**نوع الملف:** {uploaded_file.type}")
-                st.markdown(f"**الحجم:** {uploaded_file.size / 1024:.1f} KB")
-                
-                if st.button("🤖 تحليل باستخدام AI", key="ai_analyze", use_container_width=True):
-                    with st.spinner("جاري تحليل الملف..."):
-                        # Extract text from file
-                        text_content = extract_text_from_file(uploaded_file)
-                        
-                        if text_content:
-                            st.success(f"✅ تم استخراج النص من الملف ({len(text_content)} حرف)")
-                            
-                            # Store text in session state for retry
-                            st.session_state['last_analyzed_text'] = text_content
-                            
-                            # Show extracted text preview
-                            with st.expander("👁️ معاينة النص المستخرج"):
-                                st.text_area("النص المستخرج:", value=text_content[:1000] + "..." if len(text_content) > 1000 else text_content, height=200)
-                            
-                            # Analyze with AI
-                            st.info("🤖 جاري تحليل النص باستخدام AI...")
-                            ai_analysis = analyze_job_description_with_ai(text_content)
-                            
-                            if ai_analysis:
-                                # Auto-fill form with AI results
-                                auto_fill_form_with_ai(ai_analysis)
-                        else:
-                            st.error("❌ فشل في استخراج النص من الملف")
-            else:
-                st.info("📁 ارفع ملفاً لبدء التحليل")
-    
-    # API Key Setup Guide
-    api_key = get_openai_api_key()
-    if not api_key or api_key == "your-api-key-here":
-        st.markdown('<div class="subsection-header">🔑 إعداد مفتاح API</div>', unsafe_allow_html=True)
-        st.warning("⚠️ مفتاح API الخاص بـ OpenAI غير متوفر")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**التطوير المحلي:**")
-            st.code("export OPENAI_API_KEY='your-api-key-here'", language="bash")
-            st.code("streamlit run app.py", language="bash")
-            
-        with col2:
-            st.markdown("**النشر على Streamlit Cloud:**")
-            st.markdown("1. ارفع الكود إلى GitHub")
-            st.markdown("2. اربط GitHub بـ Streamlit Cloud")
-            st.markdown("3. أضف API key في Streamlit Cloud secrets")
-        
-        st.info("💡 للحصول على دليل النشر الكامل، راجع README.md")
-        st.markdown("---")
-    
-    # Manual text input option
-    st.markdown('<div class="subsection-header">أو أدخل النص يدوياً</div>', unsafe_allow_html=True)
+    # Simple text input section
+    st.markdown('<div class="section-header">إدخال النص</div>', unsafe_allow_html=True)
     
     manual_text = st.text_area(
         "أدخل نص الوصف الوظيفي هنا:",
@@ -2175,30 +2104,7 @@ def main():
         help="يمكنك نسخ ولصق نص الوصف الوظيفي مباشرة هنا"
     )
     
-    if manual_text and st.button("🤖 تحليل النص المدخل", key="manual_ai_analyze", use_container_width=True):
-        with st.spinner("جاري تحليل النص..."):
-            # Store text in session state for retry
-            st.session_state['last_analyzed_text'] = manual_text
-            
-            ai_analysis = analyze_job_description_with_ai(manual_text)
-            
-            if ai_analysis:
-                # Auto-fill form with AI results
-                auto_fill_form_with_ai(ai_analysis)
-            else:
-                st.error("❌ فشل في تحليل النص")
-    
-    # Test AI connection
-    if st.button("🧪 اختبار اتصال AI", key="test_ai", use_container_width=True):
-        test_text = "مطور برمجيات مسؤول عن تطوير تطبيقات الويب باستخدام Python و JavaScript"
-        with st.spinner("جاري اختبار اتصال AI..."):
-            test_result = analyze_job_description_with_ai(test_text)
-            if test_result:
-                st.success("✅ اتصال AI يعمل بشكل صحيح!")
-                st.info("يمكنك الآن استخدام الميزة")
-            else:
-                st.error("❌ فشل في الاتصال بـ AI")
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("---")
     
     st.markdown("---")
     
@@ -2216,74 +2122,12 @@ def main():
     st.markdown("---")
     st.markdown('<div class="section-header">حفظ وتصدير البيانات</div>', unsafe_allow_html=True)
     
-    # Form validation and PDF generation
-    if st.button("📄 إنشاء تقرير PDF احترافي", key="generate_pdf_main", type="primary", use_container_width=True):
+    # Form validation and DOCX generation
+    if st.button("إنشاء تقرير DOCX احترافي", key="generate_docx_main", type="primary", use_container_width=True):
         is_valid, errors = validate_form()
         
         if is_valid:
-            st.success("✅ تم التحقق من صحة البيانات بنجاح!")
-            
-            with st.spinner("جاري إنشاء التقرير PDF..."):
-                # Get AI analysis from session state if available
-                ai_analysis = st.session_state.get('last_ai_analysis', None)
-                
-                # Generate PDF
-                pdf_content = generate_pdf_report(st.session_state.form_data, ai_analysis)
-                
-                if pdf_content:
-                    # Create filename with timestamp
-                    from datetime import datetime
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"بطاقة_الوصف_المهني_{timestamp}.pdf"
-                    
-                    # Download button
-                    st.download_button(
-                        label="📥 تحميل التقرير PDF",
-                        data=pdf_content,
-                        file_name=filename,
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                    st.success(f"✅ تم إنشاء التقرير بنجاح! يمكنك تحميله الآن.")
-                    
-                    # Show PDF preview info
-                    st.info("📋 التقرير يتضمن:")
-                    preview_items = []
-                    if st.session_state.form_data.get('ref_data', {}).get('job'):
-                        preview_items.append("• البيانات المرجعية للمهنة")
-                    if st.session_state.form_data.get('summary'):
-                        preview_items.append("• ملخص الوظيفة")
-                    if any(st.session_state.form_data.get('internal_communications', [])):
-                        preview_items.append("• قنوات التواصل")
-                    if any(st.session_state.form_data.get('behavioral_competencies', [])):
-                        preview_items.append("• الكفاءات المطلوبة")
-                    if any(st.session_state.form_data.get('leadership_tasks', [])):
-                        preview_items.append("• المهام والمسؤوليات")
-                    if any(st.session_state.form_data.get('kpis', [])):
-                        preview_items.append("• مؤشرات الأداء")
-                    if ai_analysis:
-                        preview_items.append("• تحليل الذكاء الاصطناعي")
-                    
-                    for item in preview_items:
-                        st.write(item)
-                    
-                else:
-                    st.error("❌ فشل في إنشاء التقرير PDF")
-        else:
-            st.error("❌ يوجد أخطاء في البيانات:")
-            for error in errors:
-                st.error(f"• {error}")
-    
-    # DOCX Generation (Alternative to PDF)
-    st.markdown("---")
-    st.markdown('<div class="subsection-header">📝 إنشاء تقرير DOCX (بديل للـ PDF)</div>', unsafe_allow_html=True)
-    st.info("💡 **DOCX أفضل للعربية**: إذا كانت هناك مشاكل مع PDF، جرب DOCX للحصول على دعم كامل للخطوط العربية")
-    
-    if st.button("📝 إنشاء تقرير DOCX احترافي", key="generate_docx_main", type="secondary", use_container_width=True):
-        is_valid, errors = validate_form()
-        
-        if is_valid:
-            st.success("✅ تم التحقق من صحة البيانات بنجاح!")
+            st.success("تم التحقق من صحة البيانات بنجاح!")
             
             with st.spinner("جاري إنشاء التقرير DOCX..."):
                 # Get AI analysis from session state if available
@@ -2300,16 +2144,16 @@ def main():
                     
                     # Download button
                     st.download_button(
-                        label="📥 تحميل التقرير DOCX",
+                        label="تحميل التقرير DOCX",
                         data=docx_content,
                         file_name=filename,
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         use_container_width=True
                     )
-                    st.success(f"✅ تم إنشاء التقرير DOCX بنجاح! يمكنك تحميله الآن.")
+                    st.success(f"تم إنشاء التقرير DOCX بنجاح! يمكنك تحميله الآن.")
                     
                     # Show DOCX preview info
-                    st.info("📋 التقرير يتضمن:")
+                    st.info("التقرير يتضمن:")
                     preview_items = []
                     if st.session_state.form_data.get('ref_data', {}).get('job'):
                         preview_items.append("• البيانات المرجعية للمهنة")
@@ -2323,16 +2167,14 @@ def main():
                         preview_items.append("• المهام والمسؤوليات")
                     if any(st.session_state.form_data.get('kpis', [])):
                         preview_items.append("• مؤشرات الأداء")
-                    if ai_analysis:
-                        preview_items.append("• تحليل الذكاء الاصطناعي")
                     
                     for item in preview_items:
                         st.write(item)
                     
                 else:
-                    st.error("❌ فشل في إنشاء التقرير DOCX")
+                    st.error("فشل في إنشاء التقرير DOCX")
         else:
-            st.error("❌ يوجد أخطاء في البيانات:")
+            st.error("يوجد أخطاء في البيانات:")
             for error in errors:
                 st.error(f"• {error}")
     
@@ -2340,23 +2182,7 @@ def main():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("💾 حفظ JSON", key="save_json", type="secondary", use_container_width=True):
-            is_valid, errors = validate_form()
-            if is_valid:
-                json_output = generate_json_output()
-                st.download_button(
-                    label="📥 تحميل JSON",
-                    data=json_output,
-                    file_name="بطاقة_الوصف_المهني.json",
-                    mime="application/json",
-                    use_container_width=True
-                )
-                st.success("✅ تم إنشاء ملف JSON بنجاح!")
-            else:
-                st.error("❌ يوجد أخطاء في البيانات")
-    
-    with col2:
-        if st.button("🔄 إعادة تعيين", key="reset_form", type="secondary", use_container_width=True):
+        if st.button("إعادة تعيين", key="reset_form", type="secondary", use_container_width=True):
             st.session_state.form_data = {
                 'ref_data': {
                     'main_group': '', 'main_group_code': '', 'sub_group': '', 'sub_group_code': '',
@@ -2380,17 +2206,19 @@ def main():
             }
             st.rerun()
     
-    with col3:
-        if st.button("📊 معاينة البيانات", key="preview_data", type="secondary", use_container_width=True):
+    with col2:
+        if st.button("معاينة البيانات", key="preview_data", type="secondary", use_container_width=True):
             is_valid, errors = validate_form()
             if is_valid:
-                json_output = generate_json_output()
-                st.markdown('<div class="json-output">', unsafe_allow_html=True)
-                st.json(json_output)
-                st.markdown('</div>', unsafe_allow_html=True)
-                st.success("✅ تم عرض البيانات بنجاح!")
+                st.success("تم التحقق من صحة البيانات بنجاح!")
+                st.info("يمكنك الآن إنشاء تقرير DOCX")
             else:
-                st.error("❌ يوجد أخطاء في البيانات")
+                st.error("يوجد أخطاء في البيانات:")
+                for error in errors:
+                    st.error(f"• {error}")
+    
+    with col3:
+        st.info("استخدم زر 'إنشاء تقرير DOCX احترافي' أعلاه لإنشاء التقرير")
 
 if __name__ == "__main__":
     main()
