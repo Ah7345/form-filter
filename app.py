@@ -435,7 +435,7 @@ RULES:
         
         user_prompt = f"Analyze this job description text and extract the information in the exact JSON format specified:\n\n{text_content}"
         
-        status_text.text("🤖 جاري إرسال الطلب إلى OpenAI...")
+        status_text.text(" جاري إرسال الطلب إلى OpenAI...")
         progress_bar.progress(40)
         
         client = OpenAI(api_key=get_openai_api_key())
@@ -449,7 +449,7 @@ RULES:
             temperature=0.1
         )
         
-        status_text.text("✅ تم استلام الرد من AI...")
+        status_text.text(" تم استلام الرد من AI...")
         progress_bar.progress(80)
         
         result = response.choices[0].message.content.strip()
@@ -460,7 +460,7 @@ RULES:
         elif result.startswith('```'):
             result = result.replace('```', '').strip()
         
-        status_text.text("✅ تم الانتهاء من التحليل!")
+        status_text.text(" تم الانتهاء من التحليل!")
         progress_bar.progress(100)
         
         # Clear progress indicators
@@ -492,93 +492,7 @@ def auto_fill_form_with_ai(ai_analysis):
                 # Show what was extracted
                 st.success("تم تحليل النص بنجاح! جاري ملء النموذج...")
                 
-                # Show raw AI response first
-                with st.expander("الرد الخام من AI", expanded=False):
-                    st.code(ai_analysis, language="json")
-                
-                # Display extracted information in a nice format
-                with st.expander("المعلومات المستخرجة من AI", expanded=True):
-                    st.markdown("---")
-                    
-                    # Show structured information
-                    if 'ref_data' in parsed_data:
-                        st.subheader("البيانات المرجعية")
-                        ref_data = parsed_data['ref_data']
-                        cols = st.columns(2)
-                        for i, (key, value) in enumerate(ref_data.items()):
-                            if value:  # Only show non-empty values
-                                with cols[i % 2]:
-                                    st.metric(label=key, value=value)
-                    
-                    if 'summary' in parsed_data and parsed_data['summary']:
-                        st.subheader("ملخص الوظيفة")
-                        st.info(parsed_data['summary'])
-                    
-                    if 'internal_communications' in parsed_data:
-                        st.subheader("قنوات التواصل الداخلية")
-                        for comm in parsed_data['internal_communications']:
-                            if comm.get('entity') or comm.get('purpose'):
-                                st.write(f"• **{comm.get('entity', '')}** - {comm.get('purpose', '')}")
-                    
-                    if 'external_communications' in parsed_data:
-                        st.subheader("قنوات التواصل الخارجية")
-                        for comm in parsed_data['external_communications']:
-                            if comm.get('entity') or comm.get('purpose'):
-                                st.write(f"• **{comm.get('entity', '')}** - {comm.get('purpose', '')}")
-                    
-                    if 'job_levels' in parsed_data:
-                        st.subheader("مستويات الوظيفة")
-                        for level in parsed_data['job_levels']:
-                            if any(level.values()):
-                                st.write(f"• **{level.get('level', '')}** - {level.get('role', '')} - {level.get('progression', '')}")
-                    
-                    if 'behavioral_competencies' in parsed_data:
-                        st.subheader("الكفاءات السلوكية")
-                        for comp in parsed_data['behavioral_competencies']:
-                            if any(comp.values()):
-                                st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
-                    
-                    if 'core_competencies' in parsed_data:
-                        st.subheader("الكفاءات الأساسية")
-                        for comp in parsed_data['core_competencies']:
-                            if any(comp.values()):
-                                st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
-                    
-                    if 'leadership_competencies' in parsed_data:
-                        st.subheader("الكفاءات القيادية")
-                        for comp in parsed_data['leadership_competencies']:
-                            if any(comp.values()):
-                                st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
-                    
-                    if 'technical_competencies' in parsed_data:
-                        st.subheader("الكفاءات التقنية")
-                        for comp in parsed_data['technical_competencies']:
-                            if any(comp.values()):
-                                st.write(f"• **{comp.get('name', '')}** - المستوى: {comp.get('level', '')}")
-                    
-                    if 'leadership_tasks' in parsed_data:
-                        st.subheader("المهام القيادية")
-                        for task in parsed_data['leadership_tasks']:
-                            if task:
-                                st.write(f"• {task}")
-                    
-                    if 'specialized_tasks' in parsed_data:
-                        st.subheader("المهام المتخصصة")
-                        for task in parsed_data['specialized_tasks']:
-                            if task:
-                                st.write(f"• {task}")
-                    
-                    if 'other_tasks' in parsed_data:
-                        st.subheader("المهام الأخرى")
-                        for task in parsed_data['other_tasks']:
-                            if task:
-                                st.write(f"• {task}")
-                    
-                    if 'kpis' in parsed_data:
-                        st.subheader("مؤشرات الأداء الرئيسية")
-                        for kpi in parsed_data['kpis']:
-                            if any(kpi.values()):
-                                st.write(f"• **{kpi.get('metric', '')}** - {kpi.get('measure', '')}")
+
                 
                 # Update form data with AI results
                 if 'ref_data' in parsed_data:
@@ -612,8 +526,7 @@ def auto_fill_form_with_ai(ai_analysis):
                 if 'kpis' in parsed_data:
                     st.session_state.form_data['kpis'] = parsed_data['kpis']
                 
-                st.success("تم ملء النموذج تلقائياً باستخدام تحليل AI!")
-                st.info("يمكنك الآن مراجعة وتعديل البيانات حسب الحاجة")
+                st.success("تم ملء النموذج تلقائياً!")
                 
                 # Store AI analysis for PDF generation
                 st.session_state['last_ai_analysis'] = ai_analysis
@@ -674,79 +587,7 @@ def auto_fill_form_with_ai(ai_analysis):
                 for item in summary_items:
                     st.write(item)
                 
-                # Offer to save AI analysis
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    if st.button("💾 حفظ تحليل AI", key="save_ai_analysis"):
-                        try:
-                            # Create filename with timestamp
-                            from datetime import datetime
-                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            filename = f"تحليل_AI_{timestamp}.json"
-                            
-                            # Save AI analysis
-                            st.download_button(
-                                label="📥 تحميل تحليل AI",
-                                data=ai_analysis,
-                                file_name=filename,
-                                mime="application/json"
-                            )
-                            st.success(f"✅ تم حفظ تحليل AI في ملف: {filename}")
-                        except Exception as e:
-                            st.error(f"❌ خطأ في حفظ الملف: {str(e)}")
-                
-                with col2:
-                    if st.button("إنشاء تقرير PDF", key="ai_pdf_report"):
-                        try:
-                            with st.spinner("جاري إنشاء تقرير PDF..."):
-                                # Generate PDF with AI analysis
-                                pdf_content = generate_pdf_report(st.session_state.form_data, ai_analysis)
-                                
-                                if pdf_content:
-                                    # Create filename with timestamp
-                                    from datetime import datetime
-                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                    filename = f"تقرير_AI_{timestamp}.pdf"
-                                    
-                                    # Download button
-                                    st.download_button(
-                                        label="📥 تحميل التقرير PDF",
-                                        data=pdf_content,
-                                        file_name=filename,
-                                        mime="application/pdf"
-                                    )
-                                    st.success(f"تم إنشاء التقرير بنجاح!")
-                                else:
-                                    st.error("فشل في إنشاء التقرير PDF")
-                        except Exception as e:
-                            st.error(f"خطأ في إنشاء التقرير: {str(e)}")
-                
-                with col3:
-                    if st.button("إنشاء تقرير DOCX", key="ai_docx_report"):
-                        try:
-                            with st.spinner("جاري إنشاء تقرير DOCX..."):
-                                # Generate DOCX with AI analysis
-                                docx_content = generate_docx_report(st.session_state.form_data, ai_analysis)
-                                
-                                if docx_content:
-                                    # Create filename with timestamp
-                                    from datetime import datetime
-                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                    filename = f"تقرير_AI_{timestamp}.docx"
-                                    
-                                    # Download button
-                                    st.download_button(
-                                        label="تحميل التقرير DOCX",
-                                        data=docx_content,
-                                        file_name=filename,
-                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                    )
-                                    st.success(f"تم إنشاء التقرير DOCX بنجاح!")
-                                else:
-                                    st.error("فشل في إنشاء التقرير DOCX")
-                        except Exception as e:
-                            st.error(f"خطأ في إنشاء التقرير: {str(e)}")
+
                 
                 st.rerun()
                 
@@ -797,7 +638,7 @@ def auto_fill_form_with_ai(ai_analysis):
                                 {"role": "user", "content": f"Analyze: {original_text}"}
                             ],
                             max_tokens=2000,
-                            temperature=0.1
+                            temperature=02
                         )
                         
                         retry_result = retry_response.choices[0].message.content.strip()
@@ -943,17 +784,25 @@ def generate_docx_report(form_data, ai_analysis=None):
         
         doc.add_paragraph()  # Add spacing
         
-        # 4. Job Standard Levels Section
+        # 4. Job Standard Levels Section - 4-column table with exact specifications
         doc.add_heading("4. مستويات المهنة القياسية", level=2)
         job_levels = form_data.get('job_levels', [])
+        
+        # Create table with exact specifications
+        level_table = doc.add_table(rows=1, cols=4)
+        level_table.style = 'Table Grid'
+        level_table.rows[0].cells[0].text = "مستوى المهنة القياسي"
+        level_table.rows[0].cells[1].text = "رمز المستوى المهني"
+        level_table.rows[0].cells[2].text = "الدور المهني"
+        level_table.rows[0].cells[3].text = "التدرج المهني"
+        
+        # Style header row - bold, no shading
+        for cell in level_table.rows[0].cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.bold = True
+        
         if job_levels:
-            level_table = doc.add_table(rows=1, cols=4)
-            level_table.style = 'Table Grid'
-            level_table.rows[0].cells[0].text = "المستوى"
-            level_table.rows[0].cells[1].text = "الرمز"
-            level_table.rows[0].cells[2].text = "الدور"
-            level_table.rows[0].cells[3].text = "التقدم"
-            
             for level in job_levels:
                 if any(level.values()):
                     row = level_table.add_row()
@@ -962,17 +811,13 @@ def generate_docx_report(form_data, ai_analysis=None):
                     row.cells[2].text = level.get('role', '') or "_________________"
                     row.cells[3].text = level.get('progression', '') or "_________________"
         else:
-            # Add blank table for manual entry
-            level_table = doc.add_table(rows=2, cols=4)
-            level_table.style = 'Table Grid'
-            level_table.rows[0].cells[0].text = "المستوى"
-            level_table.rows[0].cells[1].text = "الرمز"
-            level_table.rows[0].cells[2].text = "الدور"
-            level_table.rows[0].cells[3].text = "التقدم"
-            level_table.rows[1].cells[0].text = "_________________"
-            level_table.rows[1].cells[1].text = "_________________"
-            level_table.rows[1].cells[2].text = "_________________"
-            level_table.rows[1].cells[3].text = "_________________"
+            # Add blank rows for manual entry
+            for i in range(4):  # 4 rows minimum as specified
+                row = level_table.add_row()
+                row.cells[0].text = "_________________"
+                row.cells[1].text = "_________________"
+                row.cells[2].text = "_________________"
+                row.cells[3].text = "_________________"
         
         doc.add_paragraph()  # Add spacing
         
@@ -1078,13 +923,19 @@ def generate_docx_report(form_data, ai_analysis=None):
         # 2. Competency Tables Section
         doc.add_heading("2. الجدارات السلوكية والفنية", level=2)
         
-        # Behavioral Competencies Table
+        # Behavioral Competencies Table - 3 columns, 5 rows minimum
         doc.add_heading("الجدارات السلوكية:", level=3)
         behavioral_table = doc.add_table(rows=1, cols=3)
         behavioral_table.style = 'Table Grid'
         behavioral_table.rows[0].cells[0].text = "الرقم"
         behavioral_table.rows[0].cells[1].text = "اسم الجدارة"
         behavioral_table.rows[0].cells[2].text = "مستوى الإتقان"
+        
+        # Style header row - bold, no shading
+        for cell in behavioral_table.rows[0].cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.bold = True
         
         behavioral_data = form_data.get('behavioral_table', [])
         if behavioral_data:
@@ -1094,23 +945,29 @@ def generate_docx_report(form_data, ai_analysis=None):
                     row.cells[0].text = str(comp.get('number', '')) or "_________________"
                     row.cells[1].text = comp.get('name', '') or "_________________"
                     row.cells[2].text = comp.get('level', '') or "_________________"
-        else:
-            # Add blank rows for manual entry
-            for i in range(5):
-                row = behavioral_table.add_row()
-                row.cells[0].text = str(i + 1)
-                row.cells[1].text = "_________________"
-                row.cells[2].text = "_________________"
+        
+        # Add blank rows for manual entry - 5 rows minimum as specified
+        for i in range(5):
+            row = behavioral_table.add_row()
+            row.cells[0].text = str(i + 1)
+            row.cells[1].text = "_________________"
+            row.cells[2].text = "_________________"
         
         doc.add_paragraph()  # Add spacing
         
-        # Technical Competencies Table
+        # Technical Competencies Table - 3 columns, 5 rows minimum
         doc.add_heading("الجدارات الفنية:", level=3)
         technical_table = doc.add_table(rows=1, cols=3)
         technical_table.style = 'Table Grid'
         technical_table.rows[0].cells[0].text = "الرقم"
         technical_table.rows[0].cells[1].text = "اسم الجدارة"
         technical_table.rows[0].cells[2].text = "مستوى الإتقان"
+        
+        # Style header row - bold, no shading
+        for cell in technical_table.rows[0].cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.bold = True
         
         technical_data = form_data.get('technical_table', [])
         if technical_data:
@@ -1120,26 +977,32 @@ def generate_docx_report(form_data, ai_analysis=None):
                     row.cells[0].text = str(comp.get('number', '')) or "_________________"
                     row.cells[1].text = comp.get('name', '') or "_________________"
                     row.cells[2].text = comp.get('level', '') or "_________________"
-        else:
-            # Add blank rows for manual entry
-            for i in range(5):
-                row = technical_table.add_row()
-                row.cells[0].text = str(i + 1)
-                row.cells[1].text = "_________________"
-                row.cells[2].text = "_________________"
+        
+        # Add blank rows for manual entry - 5 rows minimum as specified
+        for i in range(5):
+            row = technical_table.add_row()
+            row.cells[0].text = str(i + 1)
+            row.cells[1].text = "_________________"
+            row.cells[2].text = "_________________"
         
         doc.add_paragraph()  # Add spacing
         
         # 3. Performance Management Section
         doc.add_heading("3. إدارة الأداء المهني", level=2)
         
-        # KPIs Table
+        # KPIs Table - 3 columns, 4 rows minimum
         doc.add_heading("مؤشرات الأداء الرئيسية:", level=3)
         kpis_table = doc.add_table(rows=1, cols=3)
         kpis_table.style = 'Table Grid'
         kpis_table.rows[0].cells[0].text = "الرقم"
         kpis_table.rows[0].cells[1].text = "مؤشرات الأداء الرئيسية"
         kpis_table.rows[0].cells[2].text = "طريقة القياس"
+        
+        # Style header row - bold, no shading
+        for cell in kpis_table.rows[0].cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.bold = True
         
         kpis_data = form_data.get('kpis', [])
         if kpis_data:
@@ -1149,13 +1012,13 @@ def generate_docx_report(form_data, ai_analysis=None):
                     row.cells[0].text = str(kpi.get('number', '')) or "_________________"
                     row.cells[1].text = kpi.get('metric', '') or "_________________"
                     row.cells[2].text = kpi.get('measure', '') or "_________________"
-        else:
-            # Add blank rows for manual entry
-            for i in range(5):
-                row = kpis_table.add_row()
-                row.cells[0].text = str(i + 1)
-                row.cells[1].text = "_________________"
-                row.cells[2].text = "_________________"
+        
+        # Add blank rows for manual entry - 4 rows minimum as specified
+        for i in range(4):
+            row = kpis_table.add_row()
+            row.cells[0].text = str(i + 1)
+            row.cells[1].text = "_________________"
+            row.cells[2].text = "_________________"
         
         # Footer
         doc.add_paragraph()
@@ -2163,9 +2026,7 @@ def main():
                             # Store text in session state for retry
                             st.session_state['last_analyzed_text'] = text_content
                             
-                            # Show extracted text preview
-                            with st.expander("معاينة النص المستخرج"):
-                                st.text_area("النص المستخرج:", value=text_content[:1000] + "..." if len(text_content) > 1000 else text_content, height=200)
+
                             
                             # Analyze with AI
                             st.info("جاري تحليل النص باستخدام AI...")
