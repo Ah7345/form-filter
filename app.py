@@ -784,40 +784,34 @@ def generate_docx_report(form_data, ai_analysis=None):
         
         doc.add_paragraph()  # Add spacing
         
-        # 4. Job Standard Levels Section - 4-column table with exact specifications
+        # 4. Job Standard Levels Section - 2-column table as per client design
         doc.add_heading("4. مستويات المهنة القياسية", level=2)
         job_levels = form_data.get('job_levels', [])
         
-        # Create table with exact specifications
-        level_table = doc.add_table(rows=1, cols=4)
+        # Create table with 2 columns: Empty | Level descriptions
+        level_table = doc.add_table(rows=5, cols=2)
         level_table.style = 'Table Grid'
-        level_table.rows[0].cells[0].text = "مستوى المهنة القياسي"
-        level_table.rows[0].cells[1].text = "رمز المستوى المهني"
-        level_table.rows[0].cells[2].text = "الدور المهني"
-        level_table.rows[0].cells[3].text = "التدرج المهني"
         
-        # Style header row - bold, no shading
-        for cell in level_table.rows[0].cells:
-            for paragraph in cell.paragraphs:
-                for run in paragraph.runs:
-                    run.font.bold = True
+        # Set level descriptions (right to left for Arabic)
+        level_table.rows[0].cells[1].text = "مستوى المهنة القياسي"
+        level_table.rows[1].cells[1].text = "رمز المستوى المهني"
+        level_table.rows[2].cells[1].text = "الدور المهني"
+        level_table.rows[3].cells[1].text = "التدرج المهني (المرتبة)"
+        level_table.rows[4].cells[1].text = ""
         
-        if job_levels:
-            for level in job_levels:
-                if any(level.values()):
-                    row = level_table.add_row()
-                    row.cells[0].text = level.get('level', '') or "_________________"
-                    row.cells[1].text = level.get('code', '') or "_________________"
-                    row.cells[2].text = level.get('role', '') or "_________________"
-                    row.cells[3].text = level.get('progression', '') or "_________________"
+        # Fill data in left column (empty cells for input)
+        if job_levels and any(any(level.values()) for level in job_levels):
+            level_table.rows[0].cells[0].text = job_levels[0].get('level', '') or "_________________"
+            level_table.rows[1].cells[0].text = job_levels[0].get('code', '') or "_________________"
+            level_table.rows[2].cells[0].text = job_levels[0].get('role', '') or "_________________"
+            level_table.rows[3].cells[0].text = job_levels[0].get('progression', '') or "_________________"
         else:
-            # Add blank rows for manual entry
-            for i in range(4):  # 4 rows minimum as specified
-                row = level_table.add_row()
-                row.cells[0].text = "_________________"
-                row.cells[1].text = "_________________"
-                row.cells[2].text = "_________________"
-                row.cells[3].text = "_________________"
+            level_table.rows[0].cells[0].text = "_________________"
+            level_table.rows[1].cells[0].text = "_________________"
+            level_table.rows[2].cells[0].text = "_________________"
+            level_table.rows[3].cells[0].text = "_________________"
+            
+        level_table.rows[4].cells[0].text = "_________________"
         
         doc.add_paragraph()  # Add spacing
         
