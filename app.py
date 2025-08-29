@@ -11,6 +11,10 @@ from openai import OpenAI
 # File processing
 import PyPDF2
 import docx
+from docx import Document
+from docx.shared import Inches, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.shared import OxmlElement, qn
 
 # PDF generation
 from reportlab.lib.pagesizes import A4
@@ -705,6 +709,32 @@ def auto_fill_form_with_ai(ai_analysis):
                         except Exception as e:
                             st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
                 
+                with col3:
+                    if st.button("📝 إنشاء تقرير DOCX", key="ai_docx_report"):
+                        try:
+                            with st.spinner("جاري إنشاء تقرير DOCX..."):
+                                # Generate DOCX with AI analysis
+                                docx_content = generate_docx_report(st.session_state.form_data, ai_analysis)
+                                
+                                if docx_content:
+                                    # Create filename with timestamp
+                                    from datetime import datetime
+                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    filename = f"تقرير_AI_{timestamp}.docx"
+                                    
+                                    # Download button
+                                    st.download_button(
+                                        label="📥 تحميل التقرير DOCX",
+                                        data=docx_content,
+                                        file_name=filename,
+                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                    )
+                                    st.success(f"✅ تم إنشاء التقرير DOCX بنجاح!")
+                                else:
+                                    st.error("❌ فشل في إنشاء التقرير DOCX")
+                        except Exception as e:
+                            st.error(f"❌ خطأ في إنشاء التقرير: {str(e)}")
+                
                 st.rerun()
                 
             except json.JSONDecodeError as e:
@@ -792,6 +822,304 @@ def process_arabic_text(text):
 def A(text):
     """Short alias for process_arabic_text to keep code tidy"""
     return process_arabic_text(text)
+
+def generate_docx_report(form_data, ai_analysis=None):
+    """Generate a professional DOCX report from form data and AI analysis"""
+    try:
+        # Create a new Word document
+        doc = Document()
+        
+        # Set document properties
+        doc.core_properties.title = "بطاقة الوصف المهني"
+        doc.core_properties.author = "نظام بطاقة الوصف المهني"
+        
+        # Title
+        title = doc.add_heading("نظام بطاقة الوصف المهني", 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Subtitle
+        subtitle = doc.add_paragraph("Professional Job Description Card System")
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        subtitle.runs[0].font.size = Pt(14)
+        subtitle.runs[0].font.color.rgb = docx.shared.RGBColor(128, 128, 128)
+        
+        # Add timestamp
+        from datetime import datetime
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = doc.add_paragraph(f"تاريخ الإنشاء: {current_time}")
+        timestamp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        timestamp.runs[0].font.size = Pt(12)
+        
+        doc.add_paragraph()  # Spacing
+        
+        # Reference Data Section
+        doc.add_heading("أ‌- البيانات المرجعية للمهنة", level=1)
+        
+        ref_data = form_data.get('ref_data', {})
+        ref_table = doc.add_table(rows=1, cols=2)
+        ref_table.style = 'Table Grid'
+        
+        # Header row
+        header_cells = ref_table.rows[0].cells
+        header_cells[0].text = "المجال"
+        header_cells[1].text = "القيمة"
+        
+        # Style header
+        for cell in header_cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.bold = True
+                    run.font.color.rgb = docx.shared.RGBColor(255, 255, 255)
+        
+        # Add data rows
+        ref_items = [
+            ("المجموعة الرئيسية", ref_data.get('main_group', '')),
+            ("رمز المجموعة الرئيسية", ref_data.get('main_group_code', '')),
+            ("المجموعة الفرعية", ref_data.get('sub_group', '')),
+            ("رمز المجموعة الفرعية", ref_data.get('sub_group_code', '')),
+            ("المجموعة الثانوية", ref_data.get('secondary_group', '')),
+            ("رمز المجموعة الثانوية", ref_data.get('secondary_group_code', '')),
+            ("مجموعة الوحدات", ref_data.get('unit_group', '')),
+            ("رمز الوحدات", ref_data.get('unit_group_code', '')),
+            ("المهنة", ref_data.get('job', '')),
+            ("رمز المهنة", ref_data.get('job_code', '')),
+            ("موقع العمل", ref_data.get('work_location', '')),
+            ("المرتبة", ref_data.get('grade', ''))
+        ]
+        
+        for item in ref_items:
+            row_cells = ref_table.add_row().cells
+            row_cells[0].text = item[0]
+            row_cells[1].text = item[1]
+        
+        doc.add_paragraph()  # Spacing
+        
+        # Summary Section
+        if form_data.get('summary'):
+            doc.add_heading("ب‌- ملخص الوظيفة", level=1)
+            summary_text = form_data.get('summary', '')
+            if summary_text:
+                summary_para = doc.add_paragraph(f"الملخص: {summary_text}")
+                summary_para.runs[0].font.color.rgb = docx.shared.RGBColor(139, 0, 0)
+        
+        doc.add_paragraph()  # Spacing
+        
+        # Communications Section
+        doc.add_heading("ج‌- قنوات التواصل", level=1)
+        
+        # Internal Communications
+        doc.add_heading("التواصل الداخلي:", level=2)
+        internal_comms = form_data.get('internal_communications', [])
+        if internal_comms and any(any(comm.values()) for comm in internal_comms):
+            for comm in internal_comms:
+                if any(comm.values()):
+                    doc.add_paragraph(f"• {comm.get('entity', '')} - {comm.get('purpose', '')}", style='List Bullet')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        # External Communications
+        doc.add_heading("التواصل الخارجي:", level=2)
+        external_comms = form_data.get('external_communications', [])
+        if external_comms and any(any(comm.values()) for comm in external_comms):
+            for comm in external_comms:
+                if any(comm.values()):
+                    doc.add_paragraph(f"• {comm.get('entity', '')} - {comm.get('purpose', '')}", style='List Bullet')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        doc.add_paragraph()  # Spacing
+        
+        # Job Levels Section
+        doc.add_heading("د‌- مستويات الوظيفة", level=1)
+        job_levels = form_data.get('job_levels', [])
+        if job_levels and any(any(level.values()) for level in job_levels):
+            level_table = doc.add_table(rows=1, cols=3)
+            level_table.style = 'Table Grid'
+            
+            # Header
+            header_cells = level_table.rows[0].cells
+            header_cells[0].text = "المستوى"
+            header_cells[1].text = "الدور"
+            header_cells[2].text = "التقدم"
+            
+            # Style header
+            for cell in header_cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.bold = True
+                        run.font.color.rgb = docx.shared.RGBColor(255, 255, 255)
+            
+            # Add data
+            for level in job_levels:
+                if any(level.values()):
+                    row_cells = level_table.add_row().cells
+                    row_cells[0].text = level.get('level', '')
+                    row_cells[1].text = level.get('role', '')
+                    row_cells[2].text = level.get('progression', '')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        doc.add_paragraph()  # Spacing
+        
+        # Competencies Section
+        doc.add_heading("هـ- الكفاءات المطلوبة", level=1)
+        
+        # Behavioral Competencies
+        doc.add_heading("الكفاءات السلوكية:", level=2)
+        behavioral_comps = form_data.get('behavioral_competencies', [])
+        if behavioral_comps and any(any(comp.values()) for comp in behavioral_comps):
+            for comp in behavioral_comps:
+                if any(comp.values()):
+                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        # Core Competencies
+        doc.add_heading("الكفاءات الأساسية:", level=2)
+        core_comps = form_data.get('core_competencies', [])
+        if core_comps and any(any(comp.values()) for comp in core_comps):
+            for comp in core_comps:
+                if any(comp.values()):
+                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        # Leadership Competencies
+        doc.add_heading("الكفاءات القيادية:", level=2)
+        leadership_comps = form_data.get('leadership_competencies', [])
+        if leadership_comps and any(any(comp.values()) for comp in leadership_comps):
+            for comp in leadership_comps:
+                if any(comp.values()):
+                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        # Technical Competencies
+        doc.add_heading("الكفاءات التقنية:", level=2)
+        technical_comps = form_data.get('technical_competencies', [])
+        if technical_comps and any(any(comp.values()) for comp in technical_comps):
+            for comp in technical_comps:
+                if any(comp.values()):
+                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        doc.add_paragraph()  # Spacing
+        
+        # Tasks Section
+        doc.add_heading("و‌- المهام", level=1)
+        
+        # Leadership Tasks
+        doc.add_heading("المهام القيادية:", level=2)
+        leadership_tasks = form_data.get('leadership_tasks', [])
+        if leadership_tasks and any(task for task in leadership_tasks):
+            for i, task in enumerate(leadership_tasks, 1):
+                if task:
+                    doc.add_paragraph(f"{i}. {task}", style='List Number')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        # Specialized Tasks
+        doc.add_heading("المهام المتخصصة:", level=2)
+        specialized_tasks = form_data.get('specialized_tasks', [])
+        if specialized_tasks and any(task for task in specialized_tasks):
+            for i, task in enumerate(specialized_tasks, 1):
+                if task:
+                    doc.add_paragraph(f"{i}. {task}", style='List Number')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        # Other Tasks
+        doc.add_heading("المهام الأخرى:", level=2)
+        other_tasks = form_data.get('other_tasks', [])
+        if other_tasks and any(task for task in other_tasks):
+            for i, task in enumerate(other_tasks, 1):
+                if task:
+                    doc.add_paragraph(f"{i}. {task}", style='List Number')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        doc.add_paragraph()  # Spacing
+        
+        # KPIs Section
+        doc.add_heading("ز‌- مؤشرات الأداء الرئيسية", level=1)
+        kpis = form_data.get('kpis', [])
+        if kpis and any(kpi for kpi in kpis):
+            kpi_table = doc.add_table(rows=1, cols=2)
+            kpi_table.style = 'Table Grid'
+            
+            # Header
+            header_cells = kpi_table.rows[0].cells
+            header_cells[0].text = "المؤشر"
+            header_cells[1].text = "الوصف"
+            
+            # Style header
+            for cell in header_cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.bold = True
+                        run.font.color.rgb = docx.shared.RGBColor(255, 255, 255)
+            
+            # Add data
+            for kpi in kpis:
+                if kpi:
+                    row_cells = kpi_table.add_row().cells
+                    row_cells[0].text = kpi.get('indicator', '')
+                    row_cells[1].text = kpi.get('description', '')
+        else:
+            doc.add_paragraph("لا توجد بيانات")
+        
+        # AI Analysis Section (if available)
+        if ai_analysis:
+            doc.add_page_break()
+            doc.add_heading("تحليل الذكاء الاصطناعي", level=0)
+            
+            try:
+                ai_data = json.loads(ai_analysis)
+                doc.add_heading("ملخص التحليل:", level=1)
+                
+                if 'summary' in ai_data and ai_data['summary']:
+                    doc.add_paragraph(f"الملخص: {ai_data['summary']}")
+                
+                # Show extracted competencies count
+                total_competencies = 0
+                for comp_type in ['behavioral_competencies', 'core_competencies', 'leadership_competencies', 'technical_competencies']:
+                    if comp_type in ai_data:
+                        count = len([c for c in ai_data[comp_type] if any(c.values())])
+                        total_competencies += count
+                
+                if total_competencies > 0:
+                    doc.add_paragraph(f"إجمالي الكفاءات المستخرجة: {total_competencies}")
+                
+                # Show tasks count
+                total_tasks = 0
+                for task_type in ['leadership_tasks', 'specialized_tasks', 'other_tasks']:
+                    if task_type in ai_data:
+                        count = len([t for t in ai_data[task_type] if t])
+                        total_tasks += count
+                
+                if total_tasks > 0:
+                    doc.add_paragraph(f"إجمالي المهام المستخرجة: {total_tasks}")
+                
+            except json.JSONDecodeError:
+                doc.add_heading("تحليل نصي:", level=1)
+                doc.add_paragraph(ai_analysis[:1000] + "..." if len(ai_analysis) > 1000 else ai_analysis)
+        
+        # Footer
+        doc.add_paragraph("─" * 50)
+        doc.add_paragraph("تم إنشاء هذا التقرير بواسطة نظام بطاقة الوصف المهني")
+        doc.add_paragraph("Powered by AI-Powered Job Description System")
+        
+        # Save to BytesIO
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        return buffer.getvalue()
+        
+    except Exception as e:
+        st.error(f"❌ خطأ في إنشاء DOCX: {str(e)}")
+        return None
 
 def generate_pdf_report(form_data, ai_analysis=None):
     """Generate a professional PDF report from form data and AI analysis"""
@@ -1921,6 +2249,68 @@ def main():
                     
                 else:
                     st.error("❌ فشل في إنشاء التقرير PDF")
+        else:
+            st.error("❌ يوجد أخطاء في البيانات:")
+            for error in errors:
+                st.error(f"• {error}")
+    
+    # DOCX Generation (Alternative to PDF)
+    st.markdown("---")
+    st.markdown('<div class="subsection-header">📝 إنشاء تقرير DOCX (بديل للـ PDF)</div>', unsafe_allow_html=True)
+    st.info("💡 **DOCX أفضل للعربية**: إذا كانت هناك مشاكل مع PDF، جرب DOCX للحصول على دعم كامل للخطوط العربية")
+    
+    if st.button("📝 إنشاء تقرير DOCX احترافي", key="generate_docx_main", type="secondary", use_container_width=True):
+        is_valid, errors = validate_form()
+        
+        if is_valid:
+            st.success("✅ تم التحقق من صحة البيانات بنجاح!")
+            
+            with st.spinner("جاري إنشاء التقرير DOCX..."):
+                # Get AI analysis from session state if available
+                ai_analysis = st.session_state.get('last_ai_analysis', None)
+                
+                # Generate DOCX
+                docx_content = generate_docx_report(st.session_state.form_data, ai_analysis)
+                
+                if docx_content:
+                    # Create filename with timestamp
+                    from datetime import datetime
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"بطاقة_الوصف_المهني_{timestamp}.docx"
+                    
+                    # Download button
+                    st.download_button(
+                        label="📥 تحميل التقرير DOCX",
+                        data=docx_content,
+                        file_name=filename,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+                    st.success(f"✅ تم إنشاء التقرير DOCX بنجاح! يمكنك تحميله الآن.")
+                    
+                    # Show DOCX preview info
+                    st.info("📋 التقرير يتضمن:")
+                    preview_items = []
+                    if st.session_state.form_data.get('ref_data', {}).get('job'):
+                        preview_items.append("• البيانات المرجعية للمهنة")
+                    if st.session_state.form_data.get('summary'):
+                        preview_items.append("• ملخص الوظيفة")
+                    if any(st.session_state.form_data.get('internal_communications', [])):
+                        preview_items.append("• قنوات التواصل")
+                    if any(st.session_state.form_data.get('behavioral_competencies', [])):
+                        preview_items.append("• الكفاءات المطلوبة")
+                    if any(st.session_state.form_data.get('leadership_tasks', [])):
+                        preview_items.append("• المهام والمسؤوليات")
+                    if any(st.session_state.form_data.get('kpis', [])):
+                        preview_items.append("• مؤشرات الأداء")
+                    if ai_analysis:
+                        preview_items.append("• تحليل الذكاء الاصطناعي")
+                    
+                    for item in preview_items:
+                        st.write(item)
+                    
+                else:
+                    st.error("❌ فشل في إنشاء التقرير DOCX")
         else:
             st.error("❌ يوجد أخطاء في البيانات:")
             for error in errors:
