@@ -1,4 +1,3 @@
-# System packages required for Arabic fonts and PDF generation
 fonts-noto-naskh-arabic
 libfreetype6
 libharfbuzz0b
