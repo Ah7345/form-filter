@@ -1,332 +1,639 @@
 from docx import Document
-from docx.shared import Inches
+from docx.shared import Inches, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.shared import OxmlElement, qn
 from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
+from docx.oxml.table import CT_Tbl
+from docx.oxml.text.paragraph import CT_P
+from docx.oxml.table import CT_Tc
+
+def set_cell_shading(cell, hex_color):
+    """Apply table cell background color using OXML"""
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:fill'), hex_color)
+    tcPr.append(shd)
+
+def set_cell_borders(cell, color="000000", size=6):
+    """Apply single-line borders to all sides of a cell"""
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    
+    # Remove existing borders
+    for border in tcPr.findall(qn('w:tcBorders')):
+        tcPr.remove(border)
+    
+    # Add new borders
+    tcBorders = OxmlElement('w:tcBorders')
+    for border_name in ['top', 'left', 'bottom', 'right']:
+        border = OxmlElement(f'w:{border_name}')
+        border.set(qn('w:val'), 'single')
+        border.set(qn('w:sz'), str(size))
+        border.set(qn('w:color'), color)
+        tcBorders.append(border)
+    
+    tcPr.append(tcBorders)
+
+def set_col_widths(table, widths_in_cm):
+    """Set exact column widths in centimeters"""
+    for i, width in enumerate(widths_in_cm):
+        for cell in table.columns[i].cells:
+            cell.width = Cm(width)
+
+def arabic(p):
+    """Force paragraph RTL + right alignment for Arabic text"""
+    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p.paragraph_format.right_to_left = True
+
+def merge_vertically(table, col_idx, row_start, row_end):
+    """Merge cells vertically in a table"""
+    for row_idx in range(row_start, row_end + 1):
+        if row_idx == row_start:
+            # First cell - add vMerge start
+            cell = table.cell(row_idx, col_idx)
+            tc = cell._tc
+            tcPr = tc.get_or_add_tcPr()
+            vMerge = OxmlElement('w:vMerge')
+            vMerge.set(qn('w:val'), 'restart')
+            tcPr.append(vMerge)
+        else:
+            # Subsequent cells - add vMerge continue
+            cell = table.cell(row_idx, col_idx)
+            tc = cell._tc
+            tcPr = tc.get_or_add_tcPr()
+            vMerge = OxmlElement('w:vMerge')
+            vMerge.set(qn('w:val'), 'continue')
+            tcPr.append(vMerge)
+
+def create_header_band(doc, text):
+    """Create a header band table with the specified text"""
+    table = doc.add_table(rows=1, cols=1)
+    table.style = 'Table Grid'
+    cell = table.cell(0, 0)
+    
+    # Set cell properties
+    set_cell_shading(cell, "D9D9D9")
+    set_cell_borders(cell)
+    
+    # Add text
+    p = cell.paragraphs[0]
+    p.text = text
+    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p.paragraph_format.right_to_left = True
+    
+    # Make text bold and 12pt
+    for run in p.runs:
+        run.font.bold = True
+        run.font.size = Cm(0.42)  # 12pt
+    
+    # Set table width to full page width
+    table.columns[0].width = Cm(18.0)  # Full page width minus margins
+    
+    return table
 
 def generate_docx_report(form_data):
     """
-    Generate a professional DOCX report based on the form data.
+    Generate a professional DOCX report that matches the client template exactly.
     Creates a form template with structured tables and blank spaces for manual entry.
     """
     doc = Document()
     
-    # Set document title
-    title = doc.add_heading("نظام بطاقة الوصف المهني", level=1)
+    # Set page properties
+    section = doc.sections[0]
+    section.page_width = Cm(21.0)  # A4 width
+    section.page_height = Cm(29.7)  # A4 height
+    section.left_margin = Cm(1.5)
+    section.right_margin = Cm(1.5)
+    section.top_margin = Cm(1.5)
+    section.bottom_margin = Cm(1.5)
+    section.right_to_left = True
+    
+    # Section A: نموذج بطاقة الوصف المهني
+    # Top title - centered, bold 20pt
+    title = doc.add_heading("أ- نموذج بطاقة الوصف المهني", level=1)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for run in title.runs:
+        run.font.size = Cm(0.71)  # 20pt
+        run.font.bold = True
     
-    # Add timestamp
-    from datetime import datetime
-    timestamp = doc.add_paragraph(f"تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    timestamp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()  # Spacing
     
-    doc.add_paragraph()  # Add spacing
+    # 1. البيانات المرجعية للمهنة
+    header_table = create_header_band(doc, "1- البيانات المرجعية للمهنة")
+    doc.add_paragraph()  # Spacing
     
-    # Part A: Professional Job Description Card Template
-    doc.add_heading("أ- نموذج بطاقة الوصف المهني", level=1)
-    
-    # 1. Reference Data Section - 3-column table as per client design
-    doc.add_heading("1. البيانات المرجعية للمهنة", level=2)
-    ref_data = form_data.get('ref_data', {})
-    
-    # Create reference data table with 3 columns: Empty | Code | Main
+    # Create the reference data table
     ref_table = doc.add_table(rows=7, cols=3)
     ref_table.style = 'Table Grid'
     
-    # Set column headers (right to left for Arabic)
-    ref_table.rows[0].cells[2].text = "المجموعة الرئيسية"
-    ref_table.rows[1].cells[2].text = "المجموعة الفرعية"
-    ref_table.rows[2].cells[2].text = "المجموعة الثانوية"
-    ref_table.rows[3].cells[2].text = "مجموعة الوحدات"
-    ref_table.rows[4].cells[2].text = "المهنة"
-    ref_table.rows[5].cells[2].text = "موقع العمل"
-    ref_table.rows[6].cells[2].text = "المرتبة"
+    # Set column widths
+    set_col_widths(ref_table, [6.0, 5.0, 6.0])
     
-    # Set code labels in middle column
-    ref_table.rows[0].cells[1].text = "رمز المجموعة الرئيسية"
-    ref_table.rows[1].cells[1].text = "رمز المجموعة الفرعية"
-    ref_table.rows[2].cells[1].text = "رمز المجموعة الثانوية"
-    ref_table.rows[3].cells[1].text = "رمز الوحدات"
-    ref_table.rows[4].cells[1].text = "رمز المهنة"
-    ref_table.rows[5].cells[1].text = ""
-    ref_table.rows[6].cells[1].text = ""
+    # Set right column labels (main labels)
+    right_labels = [
+        "المجموعة الرئيسية",
+        "المجموعة الفرعية", 
+        "المجموعة الثانوية",
+        "مجموعة الوحدات",
+        "المهنة",
+        "موقع العمل",
+        "المرتبة"
+    ]
     
-    # Fill data in left column (empty cells for input)
+    # Set middle column labels (code labels)
+    middle_labels = [
+        "رمز المجموعة الرئيسية",
+        "رمز المجموعة الفرعية",
+        "رمز المجموعة الثانوية", 
+        "رمز الوحدات",
+        "رمز المهنة",
+        "",  # blank
+        ""   # blank
+    ]
+    
+    # Fill the table
+    ref_data = form_data.get('ref_data', {})
     for i in range(7):
-        ref_table.rows[i].cells[0].text = ref_data.get([
-            'main_group', 'sub_group', 'secondary_group', 
-            'unit_group', 'job', 'work_location', 'grade'
-        ][i], '') or "_________________"
+        # Left column - values
+        left_cell = ref_table.cell(i, 0)
+        set_cell_borders(left_cell)
+        p = left_cell.paragraphs[0]
+        arabic(p)
+        
+        # Get value from ref_data
+        value = ""
+        if i == 0: value = ref_data.get('main_group', '')
+        elif i == 1: value = ref_data.get('sub_group', '')
+        elif i == 2: value = ref_data.get('secondary_group', '')
+        elif i == 3: value = ref_data.get('unit_group', '')
+        elif i == 4: value = ref_data.get('job', '')
+        elif i == 5: value = ref_data.get('work_location', '')
+        elif i == 6: value = ref_data.get('grade', '')
+        
+        p.text = value.strip() if value else ""
+        
+        # Middle column - code labels
+        middle_cell = ref_table.cell(i, 1)
+        set_cell_borders(middle_cell)
+        p = middle_cell.paragraphs[0]
+        arabic(p)
+        p.text = middle_labels[i]
+        
+        # Right column - main labels
+        right_cell = ref_table.cell(i, 2)
+        set_cell_borders(right_cell)
+        p = right_cell.paragraphs[0]
+        arabic(p)
+        p.text = right_labels[i]
     
-    doc.add_paragraph()  # Add spacing
+    doc.add_paragraph()  # Spacing
     
-    # 2. General Summary Section - large empty space for manual entry
-    doc.add_heading("2. الملخص العام للمهنة", level=2)
+    # 2. الملخص العام للمهنة
+    header_table = create_header_band(doc, "2- الملخص العام للمهنة")
+    doc.add_paragraph()  # Spacing
+    
+    # Summary table with fixed height
+    summary_table = doc.add_table(rows=1, cols=1)
+    summary_table.style = 'Table Grid'
+    cell = summary_table.cell(0, 0)
+    set_cell_borders(cell)
+    
+    # Set fixed height (~3.5 cm)
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcHeight = OxmlElement('w:tcHeight')
+    tcHeight.set(qn('w:val'), '1000')  # ~3.5 cm in twips
+    tcHeight.set(qn('w:hRule'), 'exact')
+    tcPr.append(tcHeight)
+    
+    # Add summary text if available
     summary = form_data.get('summary', '')
     if summary:
-        doc.add_paragraph(summary)
-    else:
-        # Add blank lines for manual entry
-        for i in range(8):
-            doc.add_paragraph("_________________")
+        p = cell.paragraphs[0]
+        arabic(p)
+        p.text = summary.strip()
     
-    doc.add_paragraph()  # Add spacing
+    # Set table width
+    summary_table.columns[0].width = Cm(18.0)
     
-    # 3. Communication Channels Section - Single 3-column table as per client design
-    doc.add_heading("3. قنوات التواصل", level=2)
+    doc.add_paragraph()  # Spacing
     
-    # Create single table with 3 columns: Empty | Purpose | Communication Parties
-    comm_table = doc.add_table(rows=3, cols=3)
+    # 3. قنوات التواصل
+    header_table = create_header_band(doc, "3- قنوات التواصل")
+    doc.add_paragraph()  # Spacing
+    
+    # Communication table
+    comm_table = doc.add_table(rows=2, cols=3)
     comm_table.style = 'Table Grid'
+    set_col_widths(comm_table, [6.5, 6.5, 4.0])
     
-    # Set headers (right to left for Arabic)
-    comm_table.rows[0].cells[2].text = "جهات التواصل الداخلية"
-    comm_table.rows[1].cells[2].text = "جهات التواصل الخارجية"
-    comm_table.rows[2].cells[2].text = ""
-    
-    comm_table.rows[0].cells[1].text = "الغرض من التواصل"
-    comm_table.rows[1].cells[1].text = "الغرض من التواصل"
-    comm_table.rows[2].cells[1].text = ""
-    
-    # Fill data in left column (empty cells for input)
+    # Row 1: Internal communications
     internal_comms = form_data.get('internal_communications', [])
+    if internal_comms and len(internal_comms) > 0:
+        entity = internal_comms[0].get('entity', '').strip()
+        purpose = internal_comms[0].get('purpose', '').strip()
+    else:
+        entity = ""
+        purpose = ""
+    
+    # Row 1
+    cell1 = comm_table.cell(0, 0)  # Entity
+    set_cell_borders(cell1)
+    p = cell1.paragraphs[0]
+    arabic(p)
+    p.text = entity
+    
+    cell2 = comm_table.cell(0, 1)  # Purpose
+    set_cell_borders(cell2)
+    p = cell2.paragraphs[0]
+    arabic(p)
+    p.text = purpose
+    
+    cell3 = comm_table.cell(0, 2)  # Label
+    set_cell_borders(cell3)
+    p = cell3.paragraphs[0]
+    arabic(p)
+    p.text = "جهات التواصل الداخلية"
+    
+    # Row 2: External communications
     external_comms = form_data.get('external_communications', [])
-    
-    if internal_comms and any(any(comm.values()) for comm in internal_comms):
-        comm_table.rows[0].cells[0].text = internal_comms[0].get('entity', '') or "_________________"
+    if external_comms and len(external_comms) > 0:
+        entity = external_comms[0].get('entity', '').strip()
+        purpose = external_comms[0].get('purpose', '').strip()
     else:
-        comm_table.rows[0].cells[0].text = "_________________"
-        
-    if external_comms and any(any(comm.values()) for comm in external_comms):
-        comm_table.rows[1].cells[0].text = external_comms[0].get('entity', '') or "_________________"
-    else:
-        comm_table.rows[1].cells[0].text = "_________________"
-        
-    comm_table.rows[2].cells[0].text = "_________________"
+        entity = ""
+        purpose = ""
     
-    doc.add_paragraph()  # Add spacing
+    # Row 2
+    cell1 = comm_table.cell(1, 0)  # Entity
+    set_cell_borders(cell1)
+    p = cell1.paragraphs[0]
+    arabic(p)
+    p.text = entity
     
-    # 4. Job Standard Levels Section - 2-column table as per client design
-    doc.add_heading("4. مستويات المهنة القياسية", level=2)
-    job_levels = form_data.get('job_levels', [])
+    cell2 = comm_table.cell(1, 1)  # Purpose
+    set_cell_borders(cell2)
+    p = cell2.paragraphs[0]
+    arabic(p)
+    p.text = purpose
     
-    # Create table with 2 columns: Empty | Level descriptions
-    level_table = doc.add_table(rows=5, cols=2)
+    cell3 = comm_table.cell(1, 2)  # Label
+    set_cell_borders(cell3)
+    p = cell3.paragraphs[0]
+    arabic(p)
+    p.text = "جهات التواصل الخارجية"
+    
+    doc.add_paragraph()  # Spacing
+    
+    # 4. مستويات المهنة القياسية
+    header_table = create_header_band(doc, "4- مستويات المهنة القياسية")
+    doc.add_paragraph()  # Spacing
+    
+    # Job levels table
+    level_table = doc.add_table(rows=4, cols=2)
     level_table.style = 'Table Grid'
+    set_col_widths(level_table, [8.5, 8.5])
     
-    # Set level descriptions (right to left for Arabic)
-    level_table.rows[0].cells[1].text = "مستوى المهنة القياسي"
-    level_table.rows[1].cells[1].text = "رمز المستوى المهني"
-    level_table.rows[2].cells[1].text = "الدور المهني"
-    level_table.rows[3].cells[1].text = "التدرج المهني (المرتبة)"
-    level_table.rows[4].cells[1].text = ""
+    # Right column labels
+    right_labels = [
+        "مستوى المهنة القياسي",
+        "رمز المستوى المهني",
+        "الدور المهني",
+        "التدرج المهني (المرتبة)"
+    ]
     
-    # Fill data in left column (empty cells for input)
-    if job_levels and any(any(level.values()) for level in job_levels):
-        level_table.rows[0].cells[0].text = job_levels[0].get('level', '') or "_________________"
-        level_table.rows[1].cells[0].text = job_levels[0].get('code', '') or "_________________"
-        level_table.rows[2].cells[0].text = job_levels[0].get('role', '') or "_________________"
-        level_table.rows[3].cells[0].text = job_levels[0].get('progression', '') or "_________________"
-    else:
-        level_table.rows[0].cells[0].text = "_________________"
-        level_table.rows[1].cells[0].text = "_________________"
-        level_table.rows[2].cells[0].text = "_________________"
-        level_table.rows[3].cells[0].text = "_________________"
+    # Fill the table
+    job_levels = form_data.get('job_levels', [])
+    for i in range(4):
+        # Left column - values
+        left_cell = level_table.cell(i, 0)
+        set_cell_borders(left_cell)
+        p = left_cell.paragraphs[0]
+        arabic(p)
         
-    level_table.rows[4].cells[0].text = "_________________"
+        # Get value from job_levels
+        value = ""
+        if job_levels and len(job_levels) > 0:
+            level = job_levels[0]
+            if i == 0: value = level.get('level', '')
+            elif i == 1: value = level.get('code', '')
+            elif i == 2: value = level.get('role', '')
+            elif i == 3: value = level.get('progression', '')
+        
+        p.text = value.strip() if value else ""
+        
+        # Right column - labels
+        right_cell = level_table.cell(i, 1)
+        set_cell_borders(right_cell)
+        p = right_cell.paragraphs[0]
+        arabic(p)
+        p.text = right_labels[i]
     
-    doc.add_paragraph()  # Add spacing
+    doc.add_paragraph()  # Spacing
     
-    # 5. Competencies Section - Single table as per client design
-    doc.add_heading("5. الجدارات", level=2)
+    # 5. الجدارات
+    header_table = create_header_band(doc, "5- الجدارات")
+    doc.add_paragraph()  # Spacing
     
-    # Create single table with 3 columns: Empty | Competency types | Behavioral competencies
+    # Competencies table
     comp_table = doc.add_table(rows=4, cols=3)
     comp_table.style = 'Table Grid'
+    set_col_widths(comp_table, [9.0, 5.0, 3.0])
     
-    # Set competency types (right to left for Arabic)
-    comp_table.rows[0].cells[1].text = "الجدارات الأساسية"
-    comp_table.rows[1].cells[1].text = "الجدارات القيادية"
-    comp_table.rows[2].cells[1].text = "الجدارات الفنية"
-    comp_table.rows[3].cells[1].text = ""
-    
-    # Set behavioral competencies header (spans vertically)
-    comp_table.rows[0].cells[2].text = "الجدارات السلوكية"
-    comp_table.rows[1].cells[2].text = ""
-    comp_table.rows[2].cells[2].text = ""
-    comp_table.rows[3].cells[2].text = ""
-    
-    # Fill data in left column (empty cells for input)
+    # Fill the table
     core_comp = form_data.get('core_competencies', [])
     leadership_comp = form_data.get('leadership_competencies', [])
     technical_comp = form_data.get('technical_competencies', [])
     
-    if core_comp and any(any(comp.values()) for comp in core_comp):
-        comp_table.rows[0].cells[0].text = core_comp[0].get('name', '') or "_________________"
-    else:
-        comp_table.rows[0].cells[0].text = "_________________"
-        
-    if leadership_comp and any(any(comp.values()) for comp in leadership_comp):
-        comp_table.rows[1].cells[0].text = leadership_comp[0].get('name', '') or "_________________"
-    else:
-        comp_table.rows[1].cells[0].text = "_________________"
-        
-    if technical_comp and any(any(comp.values()) for comp in technical_comp):
-        comp_table.rows[2].cells[0].text = technical_comp[0].get('name', '') or "_________________"
-    else:
-        comp_table.rows[2].cells[0].text = "_________________"
-        
-    comp_table.rows[3].cells[0].text = "_________________"
+    # Row 1: Basic competencies
+    cell1 = comp_table.cell(0, 0)  # Value
+    set_cell_borders(cell1)
+    p = cell1.paragraphs[0]
+    arabic(p)
+    if core_comp and len(core_comp) > 0:
+        p.text = core_comp[0].get('name', '').strip()
     
+    cell2 = comp_table.cell(0, 1)  # Type label
+    set_cell_borders(cell2)
+    p = cell2.paragraphs[0]
+    arabic(p)
+    p.text = "الجدارات الأساسية"
+    
+    # Row 2: Leadership competencies
+    cell1 = comp_table.cell(1, 0)  # Value
+    set_cell_borders(cell1)
+    p = cell1.paragraphs[0]
+    arabic(p)
+    if leadership_comp and len(leadership_comp) > 0:
+        p.text = leadership_comp[0].get('name', '').strip()
+    
+    cell2 = comp_table.cell(1, 1)  # Type label
+    set_cell_borders(cell2)
+    p = cell2.paragraphs[0]
+    arabic(p)
+    p.text = "الجدارات القيادية"
+    
+    # Row 3: Technical competencies
+    cell1 = comp_table.cell(2, 0)  # Value
+    set_cell_borders(cell1)
+    p = cell1.paragraphs[0]
+    arabic(p)
+    if technical_comp and len(technical_comp) > 0:
+        p.text = technical_comp[0].get('name', '').strip()
+    
+    cell2 = comp_table.cell(2, 1)  # Type label
+    set_cell_borders(cell2)
+    p = cell2.paragraphs[0]
+    arabic(p)
+    p.text = "الجدارات الفنية"
+    
+    # Row 4: Blank
+    cell1 = comp_table.cell(3, 0)  # Value
+    set_cell_borders(cell1)
+    cell2 = comp_table.cell(3, 1)  # Type label
+    set_cell_borders(cell2)
+    
+    # Right column: Merge vertically and add "الجدارات السلوكية"
+    merge_vertically(comp_table, 2, 0, 3)
+    right_cell = comp_table.cell(0, 2)
+    set_cell_borders(right_cell)
+    p = right_cell.paragraphs[0]
+    arabic(p)
+    p.text = "الجدارات السلوكية"
+    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Add page break
     doc.add_page_break()
     
-    # Part B: Actual Job Description Template
-    doc.add_heading("ب- نموذج الوصف الفعلي", level=1)
+    # Section B: نموذج الوصف الفعلي
+    # Top title - centered, bold 20pt
+    title = doc.add_heading("ب- نموذج الوصف الفعلي", level=1)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for run in title.runs:
+        run.font.size = Cm(0.71)  # 20pt
+        run.font.bold = True
     
-    # 1. Tasks Section - blank lines for manual entry as per client design
-    doc.add_heading("1. المهام", level=2)
+    doc.add_paragraph()  # Spacing
     
-    # Leadership Tasks
-    doc.add_heading("المهام القيادية / الإشرافية", level=3)
+    # 1. المهام
+    header_table = create_header_band(doc, "1- المهام")
+    doc.add_paragraph()  # Spacing
+    
+    # Tasks table
+    tasks_table = doc.add_table(rows=4, cols=1)
+    tasks_table.style = 'Table Grid'
+    set_col_widths(tasks_table, [18.0])
+    
+    # Row 1: Leadership tasks
+    cell = tasks_table.cell(0, 0)
+    set_cell_borders(cell)
+    p = cell.paragraphs[0]
+    arabic(p)
+    p.text = "المهام القيادية/الإشرافية"
+    
+    # Add leadership tasks if available
     leadership_tasks = form_data.get('leadership_tasks', [])
     if leadership_tasks:
         for task in leadership_tasks:
-            if task:
-                doc.add_paragraph(f"• {task}")
-    else:
-        # Add blank lines for manual entry
-        for i in range(5):
-            doc.add_paragraph("• _________________")
+            if task and task.strip():
+                p = cell.add_paragraph()
+                arabic(p)
+                p.text = f"• {task.strip()}"
     
-    # Specialized Tasks
-    doc.add_heading("المهام التخصصية", level=3)
+    # Row 2: Specialized tasks
+    cell = tasks_table.cell(1, 0)
+    set_cell_borders(cell)
+    p = cell.paragraphs[0]
+    arabic(p)
+    p.text = "المهام التخصصية"
+    
+    # Add specialized tasks if available
     specialized_tasks = form_data.get('specialized_tasks', [])
     if specialized_tasks:
         for task in specialized_tasks:
-            if task:
-                doc.add_paragraph(f"• {task}")
-    else:
-        # Add blank lines for manual entry
-        for i in range(5):
-            doc.add_paragraph("• _________________")
+            if task and task.strip():
+                p = cell.add_paragraph()
+                arabic(p)
+                p.text = f"• {task.strip()}"
     
-    # Other Tasks
-    doc.add_heading("مهام أخرى إضافية", level=3)
+    # Row 3: Other tasks
+    cell = tasks_table.cell(2, 0)
+    set_cell_borders(cell)
+    p = cell.paragraphs[0]
+    arabic(p)
+    p.text = "مهام أخرى إضافية"
+    
+    # Add other tasks if available
     other_tasks = form_data.get('other_tasks', [])
     if other_tasks:
         for task in other_tasks:
-            if task:
-                doc.add_paragraph(f"• {task}")
-    else:
-        # Add blank lines for manual entry
-        for i in range(5):
-            doc.add_paragraph("• _________________")
+            if task and task.strip():
+                p = cell.add_paragraph()
+                arabic(p)
+                p.text = f"• {task.strip()}"
     
-    doc.add_paragraph()  # Add spacing
+    # Row 4: Blank spacer
+    cell = tasks_table.cell(3, 0)
+    set_cell_borders(cell)
     
-    # 2. Competency Tables Section - 3-column tables as per client design
-    doc.add_heading("2. الجدارات السلوكية والفنية", level=2)
+    # Set row heights
+    for row in tasks_table.rows:
+        for cell in row.cells:
+            tc = cell._tc
+            tcPr = tc.get_or_add_tcPr()
+            tcHeight = OxmlElement('w:tcHeight')
+            tcHeight.set(qn('w:val'), '600')  # ~1.5-2.0 cm in twips
+            tcHeight.set(qn('w:hRule'), 'exact')
+            tcPr.append(tcHeight)
     
-    # Behavioral Competencies Table - 3 columns, 5 rows minimum
-    doc.add_heading("الجدارات السلوكية", level=3)
-    behavioral_table = doc.add_table(rows=1, cols=3)
+    doc.add_paragraph()  # Spacing
+    
+    # 2. الجدارات السلوكية والفنية
+    header_table = create_header_band(doc, "2- الجدارات السلوكية والفنية")
+    doc.add_paragraph()  # Spacing
+    
+    # (a) Behavioral competencies table
+    doc.add_paragraph("الجدارات السلوكية").paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    behavioral_table = doc.add_table(rows=6, cols=3)  # 1 header + 5 body rows
     behavioral_table.style = 'Table Grid'
-    behavioral_table.rows[0].cells[0].text = "الرقم"
-    behavioral_table.rows[0].cells[1].text = "الجدارات السلوكية"
-    behavioral_table.rows[0].cells[2].text = "مستوى الإتقان"
+    set_col_widths(behavioral_table, [2.0, 10.0, 5.0])
     
-    # Style header row - bold, no shading
-    for cell in behavioral_table.rows[0].cells:
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.font.bold = True
+    # Header row
+    headers = ["الرقم", "الجدارات السلوكية", "مستوى الإتقان"]
+    for i, header in enumerate(headers):
+        cell = behavioral_table.cell(0, i)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        p.text = header
+        for run in p.runs:
+            run.font.bold = True
     
+    # Fill data rows
     behavioral_data = form_data.get('behavioral_table', [])
-    if behavioral_data:
-        for comp in behavioral_data:
-            if comp.get('name') or comp.get('level'):
-                row = behavioral_table.add_row()
-                row.cells[0].text = str(comp.get('number', '')) or "_________________"
-                row.cells[1].text = comp.get('name', '') or "_________________"
-                row.cells[2].text = comp.get('level', '') or "_________________"
-    
-    # Add blank rows for manual entry - 5 rows minimum as specified
     for i in range(5):
-        row = behavioral_table.add_row()
-        row.cells[0].text = str(i + 1)
-        row.cells[1].text = "_________________"
-        row.cells[2].text = "_________________"
+        row_idx = i + 1
+        
+        # Number
+        cell = behavioral_table.cell(row_idx, 0)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        p.text = str(i + 1)
+        
+        # Competency name
+        cell = behavioral_table.cell(row_idx, 1)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        if i < len(behavioral_data) and behavioral_data[i].get('name'):
+            p.text = behavioral_data[i]['name'].strip()
+        
+        # Level
+        cell = behavioral_table.cell(row_idx, 2)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        if i < len(behavioral_data) and behavioral_data[i].get('level'):
+            p.text = behavioral_data[i]['level'].strip()
     
-    doc.add_paragraph()  # Add spacing
+    doc.add_paragraph()  # Spacing
     
-    # Technical Competencies Table - 3 columns, 5 rows minimum
-    doc.add_heading("الجدارات الفنية", level=3)
-    technical_table = doc.add_table(rows=1, cols=3)
+    # (b) Technical competencies table
+    doc.add_paragraph("الجدارات الفنية").paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    technical_table = doc.add_table(rows=6, cols=3)  # 1 header + 5 body rows
     technical_table.style = 'Table Grid'
-    technical_table.rows[0].cells[0].text = "الرقم"
-    technical_table.rows[0].cells[1].text = "الجدارات الفنية"
-    technical_table.rows[0].cells[2].text = "مستوى الإتقان"
+    set_col_widths(technical_table, [2.0, 10.0, 5.0])
     
-    # Style header row - bold, no shading
-    for cell in technical_table.rows[0].cells:
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.font.bold = True
+    # Header row
+    headers = ["الرقم", "الجدارات الفنية", "مستوى الإتقان"]
+    for i, header in enumerate(headers):
+        cell = technical_table.cell(0, i)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        p.text = header
+        for run in p.runs:
+            run.font.bold = True
     
+    # Fill data rows
     technical_data = form_data.get('technical_table', [])
-    if technical_data:
-        for comp in technical_data:
-            if comp.get('name') or comp.get('level'):
-                row = technical_table.add_row()
-                row.cells[0].text = str(comp.get('number', '')) or "_________________"
-                row.cells[1].text = comp.get('name', '') or "_________________"
-                row.cells[2].text = comp.get('level', '') or "_________________"
-    
-    # Add blank rows for manual entry - 5 rows minimum as specified
     for i in range(5):
-        row = technical_table.add_row()
-        row.cells[0].text = str(i + 1)
-        row.cells[1].text = "_________________"
-        row.cells[2].text = "_________________"
+        row_idx = i + 1
+        
+        # Number
+        cell = technical_table.cell(row_idx, 0)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        p.text = str(i + 1)
+        
+        # Competency name
+        cell = technical_table.cell(row_idx, 1)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        if i < len(technical_data) and technical_data[i].get('name'):
+            p.text = technical_data[i]['name'].strip()
+        
+        # Level
+        cell = technical_table.cell(row_idx, 2)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        if i < len(technical_data) and technical_data[i].get('level'):
+            p.text = technical_data[i]['level'].strip()
     
-    doc.add_paragraph()  # Add spacing
+    doc.add_paragraph()  # Spacing
     
-    # 3. Performance Management Section - KPIs table
-    doc.add_heading("3. إدارة الأداء المهني", level=2)
+    # 3. إدارة الأداء المهني
+    header_table = create_header_band(doc, "3- إدارة الأداء المهني")
+    doc.add_paragraph()  # Spacing
     
-    # Create KPIs table with 3 columns: Number | KPI | Measurement Method
-    kpi_table = doc.add_table(rows=1, cols=3)
+    # KPIs table
+    kpi_table = doc.add_table(rows=5, cols=3)  # 1 header + 4 body rows
     kpi_table.style = 'Table Grid'
-    kpi_table.rows[0].cells[0].text = "الرقم"
-    kpi_table.rows[0].cells[1].text = "مؤشرات الأداء الرئيسية"
-    kpi_table.rows[0].cells[2].text = "طريقة القياس"
+    set_col_widths(kpi_table, [2.0, 9.0, 6.0])
     
-    # Style header row - bold, no shading
-    for cell in kpi_table.rows[0].cells:
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.font.bold = True
+    # Header row
+    headers = ["الرقم", "مؤشرات الأداء الرئيسية", "طريقة القياس"]
+    for i, header in enumerate(headers):
+        cell = kpi_table.cell(0, i)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        p.text = header
+        for run in p.runs:
+            run.font.bold = True
     
+    # Fill data rows
     kpis = form_data.get('kpis', [])
-    if kpis:
-        for kpi in kpis:
-            if kpi.get('metric') or kpi.get('measure'):
-                row = kpi_table.add_row()
-                row.cells[0].text = str(kpi.get('number', '')) or "_________________"
-                row.cells[1].text = kpi.get('metric', '') or "_________________"
-                row.cells[2].text = kpi.get('measure', '') or "_________________"
-    
-    # Add blank rows for manual entry - 4 rows minimum as specified
     for i in range(4):
-        row = kpi_table.add_row()
-        row.cells[0].text = str(i + 1)
-        row.cells[1].text = "_________________"
-        row.cells[2].text = "_________________"
-    
-    # Add footer
-    doc.add_paragraph()
-    footer = doc.add_paragraph("Powered by AI-Powered Job Description System")
-    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        row_idx = i + 1
+        
+        # Number
+        cell = kpi_table.cell(row_idx, 0)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        p.text = str(i + 1)
+        
+        # KPI metric
+        cell = kpi_table.cell(row_idx, 1)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        if i < len(kpis) and kpis[i].get('metric'):
+            p.text = kpis[i]['metric'].strip()
+        
+        # Measurement method
+        cell = kpi_table.cell(row_idx, 2)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        arabic(p)
+        if i < len(kpis) and kpis[i].get('measure'):
+            p.text = kpis[i]['measure'].strip()
     
     return doc
