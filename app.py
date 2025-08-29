@@ -638,7 +638,7 @@ def auto_fill_form_with_ai(ai_analysis):
                                 {"role": "user", "content": f"Analyze: {original_text}"}
                             ],
                             max_tokens=2000,
-                            temperature=02
+                            temperature=0.1
                         )
                         
                         retry_result = retry_response.choices[0].message.content.strip()
