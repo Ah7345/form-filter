@@ -837,301 +837,340 @@ def A(text):
     return process_arabic_text(text)
 
 def generate_docx_report(form_data, ai_analysis=None):
-    """Generate a professional DOCX report from form data and AI analysis"""
+    """Generate a professional DOCX form template from form data"""
     try:
         # Create a new Word document
         doc = Document()
         
         # Set document properties
-        doc.core_properties.title = "بطاقة الوصف المهني"
+        doc.core_properties.title = "نموذج بطاقة الوصف المهني"
         doc.core_properties.author = "نظام بطاقة الوصف المهني"
         
-        # Title
-        title = doc.add_heading("نظام بطاقة الوصف المهني", 0)
+        # Add main title
+        title = doc.add_heading("نموذج بطاقة الوصف المهني", 0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Subtitle
-        subtitle = doc.add_paragraph("Professional Job Description Card System")
-        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        subtitle.runs[0].font.size = Pt(14)
-        subtitle.runs[0].font.color.rgb = docx.shared.RGBColor(128, 128, 128)
         
         # Add timestamp
         from datetime import datetime
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        timestamp = doc.add_paragraph(f"تاريخ الإنشاء: {current_time}")
-        timestamp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        timestamp.runs[0].font.size = Pt(12)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp_para = doc.add_paragraph(f"تاريخ الإنشاء: {timestamp}")
+        timestamp_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        doc.add_paragraph()  # Spacing
+        doc.add_paragraph()  # Add spacing
         
-        # Reference Data Section
-        doc.add_heading("أ‌- البيانات المرجعية للمهنة", level=1)
+        # ===== PART A: نموذج بطاقة الوصف المهني =====
+        doc.add_heading("أ- نموذج بطاقة الوصف المهني", level=1)
+        doc.add_paragraph()
         
+        # 1. Reference Data Section
+        doc.add_heading("1. البيانات المرجعية للمهنة", level=2)
         ref_data = form_data.get('ref_data', {})
+        
+        # Create reference data table
         ref_table = doc.add_table(rows=1, cols=2)
         ref_table.style = 'Table Grid'
+        ref_table.rows[0].cells[0].text = "المجال"
+        ref_table.rows[0].cells[1].text = "القيمة"
         
-        # Header row
-        header_cells = ref_table.rows[0].cells
-        header_cells[0].text = "المجال"
-        header_cells[1].text = "القيمة"
-        
-        # Style header
-        for cell in header_cells:
-            for paragraph in cell.paragraphs:
-                for run in paragraph.runs:
-                    run.font.bold = True
-                    run.font.color.rgb = docx.shared.RGBColor(255, 255, 255)
-        
-        # Add data rows
-        ref_items = [
-            ("المجموعة الرئيسية", ref_data.get('main_group', '')),
-            ("رمز المجموعة الرئيسية", ref_data.get('main_group_code', '')),
-            ("المجموعة الفرعية", ref_data.get('sub_group', '')),
-            ("رمز المجموعة الفرعية", ref_data.get('sub_group_code', '')),
-            ("المجموعة الثانوية", ref_data.get('secondary_group', '')),
-            ("رمز المجموعة الثانوية", ref_data.get('secondary_group_code', '')),
-            ("مجموعة الوحدات", ref_data.get('unit_group', '')),
-            ("رمز الوحدات", ref_data.get('unit_group_code', '')),
-            ("المهنة", ref_data.get('job', '')),
-            ("رمز المهنة", ref_data.get('job_code', '')),
-            ("موقع العمل", ref_data.get('work_location', '')),
-            ("المرتبة", ref_data.get('grade', ''))
+        # Add reference data rows
+        ref_fields = [
+            ('المجموعة الرئيسية', ref_data.get('main_group', '')),
+            ('رمز المجموعة الرئيسية', ref_data.get('main_group_code', '')),
+            ('المجموعة الفرعية', ref_data.get('sub_group', '')),
+            ('رمز المجموعة الفرعية', ref_data.get('sub_group_code', '')),
+            ('المجموعة الثانوية', ref_data.get('secondary_group', '')),
+            ('رمز المجموعة الثانوية', ref_data.get('secondary_group_code', '')),
+            ('مجموعة الوحدة', ref_data.get('unit_group', '')),
+            ('رمز مجموعة الوحدة', ref_data.get('unit_group_code', '')),
+            ('المهنة', ref_data.get('job', '')),
+            ('رمز المهنة', ref_data.get('job_code', '')),
+            ('موقع العمل', ref_data.get('work_location', '')),
+            ('الدرجة', ref_data.get('grade', ''))
         ]
         
-        for item in ref_items:
-            row_cells = ref_table.add_row().cells
-            row_cells[0].text = item[0]
-            row_cells[1].text = item[1]
+        for field_name, field_value in ref_fields:
+            row = ref_table.add_row()
+            row.cells[0].text = field_name
+            row.cells[1].text = field_value if field_value else "_________________"
         
-        doc.add_paragraph()  # Spacing
+        doc.add_paragraph()  # Add spacing
         
-        # Summary Section
-        if form_data.get('summary'):
-            doc.add_heading("ب‌- ملخص الوظيفة", level=1)
-            summary_text = form_data.get('summary', '')
-            if summary_text:
-                summary_para = doc.add_paragraph(f"الملخص: {summary_text}")
-                summary_para.runs[0].font.color.rgb = docx.shared.RGBColor(139, 0, 0)
+        # 2. General Summary Section
+        doc.add_heading("2. الملخص العام للمهنة", level=2)
+        summary = form_data.get('summary', '')
+        if summary:
+            doc.add_paragraph(summary)
+        else:
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph("_________________________________________________________________")
         
-        doc.add_paragraph()  # Spacing
+        doc.add_paragraph()  # Add spacing
         
-        # Communications Section
-        doc.add_heading("ج‌- قنوات التواصل", level=1)
+        # 3. Communication Channels Section
+        doc.add_heading("3. قنوات التواصل", level=2)
         
         # Internal Communications
-        doc.add_heading("التواصل الداخلي:", level=2)
+        doc.add_heading("التواصل الداخلي:", level=3)
         internal_comms = form_data.get('internal_communications', [])
-        if internal_comms and any(any(comm.values()) for comm in internal_comms):
+        if internal_comms:
+            comm_table = doc.add_table(rows=1, cols=2)
+            comm_table.style = 'Table Grid'
+            comm_table.rows[0].cells[0].text = "جهات التواصل"
+            comm_table.rows[0].cells[1].text = "الغرض من التواصل"
+            
             for comm in internal_comms:
-                if any(comm.values()):
-                    doc.add_paragraph(f"• {comm.get('entity', '')} - {comm.get('purpose', '')}", style='List Bullet')
+                if comm.get('entity') or comm.get('purpose'):
+                    row = comm_table.add_row()
+                    row.cells[0].text = comm.get('entity', '') or "_________________"
+                    row.cells[1].text = comm.get('purpose', '') or "_________________"
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(3):
+                doc.add_paragraph("جهات التواصل: _________________ الغرض: _________________")
         
         # External Communications
-        doc.add_heading("التواصل الخارجي:", level=2)
+        doc.add_heading("التواصل الخارجي:", level=3)
         external_comms = form_data.get('external_communications', [])
-        if external_comms and any(any(comm.values()) for comm in external_comms):
+        if external_comms:
             for comm in external_comms:
-                if any(comm.values()):
-                    doc.add_paragraph(f"• {comm.get('entity', '')} - {comm.get('purpose', '')}", style='List Bullet')
+                if comm.get('entity') or comm.get('purpose'):
+                    doc.add_paragraph(f"جهات التواصل: {comm.get('entity', '') or '_________________'} الغرض: {comm.get('purpose', '') or '_________________'}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(3):
+                doc.add_paragraph("جهات التواصل: _________________ الغرض: _________________")
         
-        doc.add_paragraph()  # Spacing
+        doc.add_paragraph()  # Add spacing
         
-        # Job Levels Section
-        doc.add_heading("د‌- مستويات الوظيفة", level=1)
+        # 4. Job Standard Levels Section
+        doc.add_heading("4. مستويات المهنة القياسية", level=2)
         job_levels = form_data.get('job_levels', [])
-        if job_levels and any(any(level.values()) for level in job_levels):
-            level_table = doc.add_table(rows=1, cols=3)
+        if job_levels:
+            level_table = doc.add_table(rows=1, cols=4)
             level_table.style = 'Table Grid'
+            level_table.rows[0].cells[0].text = "المستوى"
+            level_table.rows[0].cells[1].text = "الرمز"
+            level_table.rows[0].cells[2].text = "الدور"
+            level_table.rows[0].cells[3].text = "التقدم"
             
-            # Header
-            header_cells = level_table.rows[0].cells
-            header_cells[0].text = "المستوى"
-            header_cells[1].text = "الدور"
-            header_cells[2].text = "التقدم"
-            
-            # Style header
-            for cell in header_cells:
-                for paragraph in cell.paragraphs:
-                    for run in paragraph.runs:
-                        run.font.bold = True
-                        run.font.color.rgb = docx.shared.RGBColor(255, 255, 255)
-            
-            # Add data
             for level in job_levels:
                 if any(level.values()):
-                    row_cells = level_table.add_row().cells
-                    row_cells[0].text = level.get('level', '')
-                    row_cells[1].text = level.get('role', '')
-                    row_cells[2].text = level.get('progression', '')
+                    row = level_table.add_row()
+                    row.cells[0].text = level.get('level', '') or "_________________"
+                    row.cells[1].text = level.get('code', '') or "_________________"
+                    row.cells[2].text = level.get('role', '') or "_________________"
+                    row.cells[3].text = level.get('progression', '') or "_________________"
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank table for manual entry
+            level_table = doc.add_table(rows=2, cols=4)
+            level_table.style = 'Table Grid'
+            level_table.rows[0].cells[0].text = "المستوى"
+            level_table.rows[0].cells[1].text = "الرمز"
+            level_table.rows[0].cells[2].text = "الدور"
+            level_table.rows[0].cells[3].text = "التقدم"
+            level_table.rows[1].cells[0].text = "_________________"
+            level_table.rows[1].cells[1].text = "_________________"
+            level_table.rows[1].cells[2].text = "_________________"
+            level_table.rows[1].cells[3].text = "_________________"
         
-        doc.add_paragraph()  # Spacing
+        doc.add_paragraph()  # Add spacing
         
-        # Competencies Section
-        doc.add_heading("هـ- الكفاءات المطلوبة", level=1)
+        # 5. Competencies Section
+        doc.add_heading("5. الجدارات", level=2)
         
         # Behavioral Competencies
-        doc.add_heading("الكفاءات السلوكية:", level=2)
-        behavioral_comps = form_data.get('behavioral_competencies', [])
-        if behavioral_comps and any(any(comp.values()) for comp in behavioral_comps):
-            for comp in behavioral_comps:
-                if any(comp.values()):
-                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        doc.add_heading("الجدارات السلوكية:", level=3)
+        behavioral_comp = form_data.get('behavioral_competencies', [])
+        if behavioral_comp:
+            for comp in behavioral_comp:
+                if comp.get('name') or comp.get('level'):
+                    doc.add_paragraph(f"• {comp.get('name', '') or '_________________'} - المستوى: {comp.get('level', '') or '_________________'}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph(f"• _________________ - المستوى: _________________")
         
         # Core Competencies
-        doc.add_heading("الكفاءات الأساسية:", level=2)
-        core_comps = form_data.get('core_competencies', [])
-        if core_comps and any(any(comp.values()) for comp in core_comps):
-            for comp in core_comps:
-                if any(comp.values()):
-                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        doc.add_heading("الجدارات الأساسية:", level=3)
+        core_comp = form_data.get('core_competencies', [])
+        if core_comp:
+            for comp in core_comp:
+                if comp.get('name') or comp.get('level'):
+                    doc.add_paragraph(f"• {comp.get('name', '') or '_________________'} - المستوى: {comp.get('level', '') or '_________________'}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph(f"• _________________ - المستوى: _________________")
         
         # Leadership Competencies
-        doc.add_heading("الكفاءات القيادية:", level=2)
-        leadership_comps = form_data.get('leadership_competencies', [])
-        if leadership_comps and any(any(comp.values()) for comp in leadership_comps):
-            for comp in leadership_comps:
-                if any(comp.values()):
-                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        doc.add_heading("الجدارات القيادية:", level=3)
+        leadership_comp = form_data.get('leadership_competencies', [])
+        if leadership_comp:
+            for comp in leadership_comp:
+                if comp.get('name') or comp.get('level'):
+                    doc.add_paragraph(f"• {comp.get('name', '') or '_________________'} - المستوى: {comp.get('level', '') or '_________________'}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph(f"• _________________ - المستوى: _________________")
         
         # Technical Competencies
-        doc.add_heading("الكفاءات التقنية:", level=2)
-        technical_comps = form_data.get('technical_competencies', [])
-        if technical_comps and any(any(comp.values()) for comp in technical_comps):
-            for comp in technical_comps:
-                if any(comp.values()):
-                    doc.add_paragraph(f"• {comp.get('name', '')} - المستوى: {comp.get('level', '')}", style='List Bullet')
+        doc.add_heading("الجدارات التقنية:", level=3)
+        technical_comp = form_data.get('technical_competencies', [])
+        if technical_comp:
+            for comp in technical_comp:
+                if comp.get('name') or comp.get('level'):
+                    doc.add_paragraph(f"• {comp.get('name', '') or '_________________'} - المستوى: {comp.get('level', '') or '_________________'}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph(f"• _________________ - المستوى: _________________")
         
-        doc.add_paragraph()  # Spacing
+        # Page break for second part
+        doc.add_page_break()
         
-        # Tasks Section
-        doc.add_heading("و‌- المهام", level=1)
+        # ===== PART B: نموذج الوصف الفعلي =====
+        doc.add_heading("ب- نموذج الوصف الفعلي", level=1)
+        doc.add_paragraph()
+        
+        # 1. Tasks Section
+        doc.add_heading("1. المهام", level=2)
         
         # Leadership Tasks
-        doc.add_heading("المهام القيادية:", level=2)
+        doc.add_heading("المهام القيادية/الإشرافية:", level=3)
         leadership_tasks = form_data.get('leadership_tasks', [])
-        if leadership_tasks and any(task for task in leadership_tasks):
-            for i, task in enumerate(leadership_tasks, 1):
+        if leadership_tasks:
+            for task in leadership_tasks:
                 if task:
-                    doc.add_paragraph(f"{i}. {task}", style='List Number')
+                    doc.add_paragraph(f"• {task}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph("• _________________")
         
         # Specialized Tasks
-        doc.add_heading("المهام المتخصصة:", level=2)
+        doc.add_heading("المهام التخصصية:", level=3)
         specialized_tasks = form_data.get('specialized_tasks', [])
-        if specialized_tasks and any(task for task in specialized_tasks):
-            for i, task in enumerate(specialized_tasks, 1):
+        if specialized_tasks:
+            for task in specialized_tasks:
                 if task:
-                    doc.add_paragraph(f"{i}. {task}", style='List Number')
+                    doc.add_paragraph(f"• {task}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph("• _________________")
         
         # Other Tasks
-        doc.add_heading("المهام الأخرى:", level=2)
+        doc.add_heading("المهام الإضافية:", level=3)
         other_tasks = form_data.get('other_tasks', [])
-        if other_tasks and any(task for task in other_tasks):
-            for i, task in enumerate(other_tasks, 1):
+        if other_tasks:
+            for task in other_tasks:
                 if task:
-                    doc.add_paragraph(f"{i}. {task}", style='List Number')
+                    doc.add_paragraph(f"• {task}")
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank lines for manual entry
+            for i in range(5):
+                doc.add_paragraph("• _________________")
         
-        doc.add_paragraph()  # Spacing
+        doc.add_paragraph()  # Add spacing
         
-        # KPIs Section
-        doc.add_heading("ز‌- مؤشرات الأداء الرئيسية", level=1)
-        kpis = form_data.get('kpis', [])
-        if kpis and any(kpi for kpi in kpis):
-            kpi_table = doc.add_table(rows=1, cols=2)
-            kpi_table.style = 'Table Grid'
-            
-            # Header
-            header_cells = kpi_table.rows[0].cells
-            header_cells[0].text = "المؤشر"
-            header_cells[1].text = "الوصف"
-            
-            # Style header
-            for cell in header_cells:
-                for paragraph in cell.paragraphs:
-                    for run in paragraph.runs:
-                        run.font.bold = True
-                        run.font.color.rgb = docx.shared.RGBColor(255, 255, 255)
-            
-            # Add data
-            for kpi in kpis:
-                if kpi:
-                    row_cells = kpi_table.add_row().cells
-                    row_cells[0].text = kpi.get('indicator', '')
-                    row_cells[1].text = kpi.get('description', '')
+        # 2. Competency Tables Section
+        doc.add_heading("2. الجدارات السلوكية والفنية", level=2)
+        
+        # Behavioral Competencies Table
+        doc.add_heading("الجدارات السلوكية:", level=3)
+        behavioral_table = doc.add_table(rows=1, cols=3)
+        behavioral_table.style = 'Table Grid'
+        behavioral_table.rows[0].cells[0].text = "الرقم"
+        behavioral_table.rows[0].cells[1].text = "اسم الجدارة"
+        behavioral_table.rows[0].cells[2].text = "مستوى الإتقان"
+        
+        behavioral_data = form_data.get('behavioral_table', [])
+        if behavioral_data:
+            for comp in behavioral_data:
+                if comp.get('name') or comp.get('level'):
+                    row = behavioral_table.add_row()
+                    row.cells[0].text = str(comp.get('number', '')) or "_________________"
+                    row.cells[1].text = comp.get('name', '') or "_________________"
+                    row.cells[2].text = comp.get('level', '') or "_________________"
         else:
-            doc.add_paragraph("لا توجد بيانات")
+            # Add blank rows for manual entry
+            for i in range(5):
+                row = behavioral_table.add_row()
+                row.cells[0].text = str(i + 1)
+                row.cells[1].text = "_________________"
+                row.cells[2].text = "_________________"
         
-        # AI Analysis Section (if available)
-        if ai_analysis:
-            doc.add_page_break()
-            doc.add_heading("تحليل الذكاء الاصطناعي", level=0)
-            
-            try:
-                ai_data = json.loads(ai_analysis)
-                doc.add_heading("ملخص التحليل:", level=1)
-                
-                if 'summary' in ai_data and ai_data['summary']:
-                    doc.add_paragraph(f"الملخص: {ai_data['summary']}")
-                
-                # Show extracted competencies count
-                total_competencies = 0
-                for comp_type in ['behavioral_competencies', 'core_competencies', 'leadership_competencies', 'technical_competencies']:
-                    if comp_type in ai_data:
-                        count = len([c for c in ai_data[comp_type] if any(c.values())])
-                        total_competencies += count
-                
-                if total_competencies > 0:
-                    doc.add_paragraph(f"إجمالي الكفاءات المستخرجة: {total_competencies}")
-                
-                # Show tasks count
-                total_tasks = 0
-                for task_type in ['leadership_tasks', 'specialized_tasks', 'other_tasks']:
-                    if task_type in ai_data:
-                        count = len([t for t in ai_data[task_type] if t])
-                        total_tasks += count
-                
-                if total_tasks > 0:
-                    doc.add_paragraph(f"إجمالي المهام المستخرجة: {total_tasks}")
-                
-            except json.JSONDecodeError:
-                doc.add_heading("تحليل نصي:", level=1)
-                doc.add_paragraph(ai_analysis[:1000] + "..." if len(ai_analysis) > 1000 else ai_analysis)
+        doc.add_paragraph()  # Add spacing
+        
+        # Technical Competencies Table
+        doc.add_heading("الجدارات الفنية:", level=3)
+        technical_table = doc.add_table(rows=1, cols=3)
+        technical_table.style = 'Table Grid'
+        technical_table.rows[0].cells[0].text = "الرقم"
+        technical_table.rows[0].cells[1].text = "اسم الجدارة"
+        technical_table.rows[0].cells[2].text = "مستوى الإتقان"
+        
+        technical_data = form_data.get('technical_table', [])
+        if technical_data:
+            for comp in technical_data:
+                if comp.get('name') or comp.get('level'):
+                    row = technical_table.add_row()
+                    row.cells[0].text = str(comp.get('number', '')) or "_________________"
+                    row.cells[1].text = comp.get('name', '') or "_________________"
+                    row.cells[2].text = comp.get('level', '') or "_________________"
+        else:
+            # Add blank rows for manual entry
+            for i in range(5):
+                row = technical_table.add_row()
+                row.cells[0].text = str(i + 1)
+                row.cells[1].text = "_________________"
+                row.cells[2].text = "_________________"
+        
+        doc.add_paragraph()  # Add spacing
+        
+        # 3. Performance Management Section
+        doc.add_heading("3. إدارة الأداء المهني", level=2)
+        
+        # KPIs Table
+        doc.add_heading("مؤشرات الأداء الرئيسية:", level=3)
+        kpis_table = doc.add_table(rows=1, cols=3)
+        kpis_table.style = 'Table Grid'
+        kpis_table.rows[0].cells[0].text = "الرقم"
+        kpis_table.rows[0].cells[1].text = "مؤشرات الأداء الرئيسية"
+        kpis_table.rows[0].cells[2].text = "طريقة القياس"
+        
+        kpis_data = form_data.get('kpis', [])
+        if kpis_data:
+            for kpi in kpis_data:
+                if kpi.get('metric') or kpi.get('measure'):
+                    row = kpis_table.add_row()
+                    row.cells[0].text = str(kpi.get('number', '')) or "_________________"
+                    row.cells[1].text = kpi.get('metric', '') or "_________________"
+                    row.cells[2].text = kpi.get('measure', '') or "_________________"
+        else:
+            # Add blank rows for manual entry
+            for i in range(5):
+                row = kpis_table.add_row()
+                row.cells[0].text = str(i + 1)
+                row.cells[1].text = "_________________"
+                row.cells[2].text = "_________________"
         
         # Footer
-        doc.add_paragraph("─" * 50)
-        doc.add_paragraph("تم إنشاء هذا التقرير بواسطة نظام بطاقة الوصف المهني")
-        doc.add_paragraph("Powered by AI-Powered Job Description System")
+        doc.add_paragraph()
+        doc.add_paragraph("_" * 80)
+        doc.add_paragraph("Powered by Professional Job Description System")
         
-        # Save to BytesIO
-        buffer = io.BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
+        # Save to bytes
+        docx_bytes = io.BytesIO()
+        doc.save(docx_bytes)
+        docx_bytes.seek(0)
         
-        return buffer.getvalue()
+        return docx_bytes.getvalue()
         
     except Exception as e:
-        st.error(f"❌ خطأ في إنشاء DOCX: {str(e)}")
+        st.error(f"خطأ في إنشاء التقرير DOCX: {str(e)}")
         return None
 
 def generate_pdf_report(form_data, ai_analysis=None):
