@@ -54,9 +54,14 @@ export OPENAI_API_KEY="your-api-key-here"
 ```
 
 #### Option B: Streamlit Secrets
-Create `.streamlit/secrets.toml`:
+1. Copy the example file:
+```bash
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+```
+
+2. Edit `.streamlit/secrets.toml` and add your API key:
 ```toml
-OPENAI_API_KEY = "your-api-key-here"
+OPENAI_API_KEY = "your-actual-api-key-here"
 ```
 
 **⚠️ Security Note**: Never commit your actual API key to the repository. The `.streamlit/secrets.toml` file is already in `.gitignore` to prevent accidental commits.
