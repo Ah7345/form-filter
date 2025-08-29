@@ -40,15 +40,37 @@ AR_FONT_BOLD_PATH = "fonts/NotoNaskhArabic-Bold.ttf"
 def get_openai_api_key():
     """Get OpenAI API key from environment or secrets"""
     try:
+        # Debug: Check what's available
+        st.write("🔍 Debug: Checking API key sources...")
+        
         # Try to get from Streamlit secrets first
         if hasattr(st, 'secrets') and st.secrets:
-            api_key = st.secrets.get("OPENAI_API_KEY", "")
-            if api_key:
-                return api_key
+            st.write("✅ Streamlit secrets available")
+            try:
+                # Try different ways to access the secret
+                api_key = st.secrets.get("OPENAI_API_KEY", "")
+                if not api_key:
+                    # Try without default section
+                    api_key = st.secrets.get("OPENAI_API_KEY", "")
+                if not api_key:
+                    # Try direct access
+                    api_key = getattr(st.secrets, "OPENAI_API_KEY", "")
+                
+                st.write(f"🔑 API Key from secrets: {'***' + api_key[-4:] if api_key else 'NOT FOUND'}")
+                if api_key and api_key != "your-api-key-here":
+                    return api_key
+            except Exception as e:
+                st.write(f"❌ Error reading secrets: {e}")
+        else:
+            st.write("❌ Streamlit secrets not available")
         
         # Fallback to environment variable
-        return os.getenv("OPENAI_API_KEY", "")
+        env_key = os.getenv("OPENAI_API_KEY", "")
+        st.write(f"🔑 API Key from env: {'***' + env_key[-4:] if env_key else 'NOT FOUND'}")
+        return env_key
+        
     except Exception as e:
+        st.write(f"❌ General error: {e}")
         # If there's any error with secrets, fall back to environment
         return os.getenv("OPENAI_API_KEY", "")
 
