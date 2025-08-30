@@ -112,7 +112,7 @@ def generate_docx_report(form_data):
     
     # Section A: نموذج بطاقة الوصف المهني
     # Top title - centered, bold 20pt
-    title = doc.add_heading("أ- نموذج بطاقة الوصف المهني", level=1)
+    title = doc.add_heading("نموذج بطاقة الوصف المهني - أ", level=1)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for run in title.runs:
         run.font.size = Cm(0.71)  # 20pt
@@ -121,7 +121,7 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # 1. البيانات المرجعية للمهنة
-    header_table = create_header_band(doc, "1- البيانات المرجعية للمهنة")
+    header_table = create_header_band(doc, "البيانات المرجعية للمهنة - 1")
     doc.add_paragraph()  # Spacing
     
     # Create the reference data table
@@ -191,7 +191,7 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # 2. الملخص العام للمهنة
-    header_table = create_header_band(doc, "2- الملخص العام للمهنة")
+    header_table = create_header_band(doc, "الملخص العام للمهنة - 2")
     doc.add_paragraph()  # Spacing
     
     # Summary table with fixed height
@@ -221,10 +221,10 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # 3. قنوات التواصل
-    header_table = create_header_band(doc, "3- قنوات التواصل")
+    header_table = create_header_band(doc, "قنوات التواصل - 3")
     doc.add_paragraph()  # Spacing
     
-    # Communication table
+    # Communication table - single table with proper RTL column order
     comm_table = doc.add_table(rows=2, cols=3)
     comm_table.style = 'Table Grid'
     set_col_widths(comm_table, [6.5, 6.5, 4.0])
@@ -238,24 +238,24 @@ def generate_docx_report(form_data):
         entity = ""
         purpose = ""
     
-    # Row 1
-    cell1 = comm_table.cell(0, 0)  # Entity
+    # Row 1 - RTL column order: جهات التواصل الداخلية | الغرض من التواصل | (blank/value)
+    cell1 = comm_table.cell(0, 2)  # Rightmost: جهات التواصل الداخلية (header)
     set_cell_borders(cell1)
     p = cell1.paragraphs[0]
     arabic(p)
-    p.text = entity
+    p.text = "جهات التواصل الداخلية"
     
-    cell2 = comm_table.cell(0, 1)  # Purpose
+    cell2 = comm_table.cell(0, 1)  # Middle: الغرض من التواصل
     set_cell_borders(cell2)
     p = cell2.paragraphs[0]
     arabic(p)
     p.text = purpose
     
-    cell3 = comm_table.cell(0, 2)  # Label
+    cell3 = comm_table.cell(0, 0)  # Leftmost: (blank/value)
     set_cell_borders(cell3)
     p = cell3.paragraphs[0]
     arabic(p)
-    p.text = "جهات التواصل الداخلية"
+    p.text = entity
     
     # Row 2: External communications
     external_comms = form_data.get('external_communications', [])
@@ -266,32 +266,32 @@ def generate_docx_report(form_data):
         entity = ""
         purpose = ""
     
-    # Row 2
-    cell1 = comm_table.cell(1, 0)  # Entity
+    # Row 2 - RTL column order: جهات التواصل الخارجية | الغرض من التواصل | (blank/value)
+    cell1 = comm_table.cell(1, 2)  # Rightmost: جهات التواصل الخارجية (header)
     set_cell_borders(cell1)
     p = cell1.paragraphs[0]
     arabic(p)
-    p.text = entity
+    p.text = "جهات التواصل الخارجية"
     
-    cell2 = comm_table.cell(1, 1)  # Purpose
+    cell2 = comm_table.cell(1, 1)  # Middle: الغرض من التواصل
     set_cell_borders(cell2)
     p = cell2.paragraphs[0]
     arabic(p)
     p.text = purpose
     
-    cell3 = comm_table.cell(1, 2)  # Label
+    cell3 = comm_table.cell(1, 0)  # Leftmost: (blank/value)
     set_cell_borders(cell3)
     p = cell3.paragraphs[0]
     arabic(p)
-    p.text = "جهات التواصل الخارجية"
+    p.text = entity
     
     doc.add_paragraph()  # Spacing
     
     # 4. مستويات المهنة القياسية
-    header_table = create_header_band(doc, "4- مستويات المهنة القياسية")
+    header_table = create_header_band(doc, "مستويات المهنة القياسية - 4")
     doc.add_paragraph()  # Spacing
     
-    # Job levels table
+    # Job levels table - two columns, label on right, value on left
     level_table = doc.add_table(rows=4, cols=2)
     level_table.style = 'Table Grid'
     set_col_widths(level_table, [8.5, 8.5])
@@ -334,69 +334,78 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # 5. الجدارات
-    header_table = create_header_band(doc, "5- الجدارات")
+    header_table = create_header_band(doc, "الجدارات - 5")
     doc.add_paragraph()  # Spacing
     
-    # Competencies table
+    # Competencies table - 3-column matrix layout as per template
     comp_table = doc.add_table(rows=4, cols=3)
     comp_table.style = 'Table Grid'
     set_col_widths(comp_table, [9.0, 5.0, 3.0])
     
-    # Fill the table
+    # Get competencies data
     core_comp = form_data.get('core_competencies', [])
     leadership_comp = form_data.get('leadership_competencies', [])
     technical_comp = form_data.get('technical_competencies', [])
     
     # Row 1: Basic competencies
-    cell1 = comp_table.cell(0, 0)  # Value
+    cell1 = comp_table.cell(0, 0)  # Left: Value
     set_cell_borders(cell1)
     p = cell1.paragraphs[0]
     arabic(p)
     if core_comp and len(core_comp) > 0:
         p.text = core_comp[0].get('name', '').strip()
     
-    cell2 = comp_table.cell(0, 1)  # Type label
+    cell2 = comp_table.cell(0, 1)  # Middle: الجدارات الأساسية
     set_cell_borders(cell2)
     p = cell2.paragraphs[0]
     arabic(p)
     p.text = "الجدارات الأساسية"
+    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     # Row 2: Leadership competencies
-    cell1 = comp_table.cell(1, 0)  # Value
+    cell1 = comp_table.cell(1, 0)  # Left: Value
     set_cell_borders(cell1)
     p = cell1.paragraphs[0]
     arabic(p)
     if leadership_comp and len(leadership_comp) > 0:
         p.text = leadership_comp[0].get('name', '').strip()
     
-    cell2 = comp_table.cell(1, 1)  # Type label
+    cell2 = comp_table.cell(1, 1)  # Middle: الجدارات القيادية
     set_cell_borders(cell2)
     p = cell2.paragraphs[0]
     arabic(p)
     p.text = "الجدارات القيادية"
+    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # Row 3: Technical competencies
-    cell1 = comp_table.cell(2, 0)  # Value
+    # Row 3: Technical competencies (full width)
+    # Merge all 3 columns for the header
+    cell1 = comp_table.cell(2, 0)
+    cell2 = comp_table.cell(2, 1)
+    cell3 = comp_table.cell(2, 2)
+    
+    # Merge cells horizontally
+    cell1.merge(cell3)
+    set_cell_borders(cell1)
+    p = cell1.paragraphs[0]
+    arabic(p)
+    p.text = "الجدارات الفنية"
+    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Row 4: Technical competencies value area
+    cell1 = comp_table.cell(3, 0)
+    cell2 = comp_table.cell(3, 1)
+    cell3 = comp_table.cell(3, 2)
+    
+    # Merge cells horizontally
+    cell1.merge(cell3)
     set_cell_borders(cell1)
     p = cell1.paragraphs[0]
     arabic(p)
     if technical_comp and len(technical_comp) > 0:
         p.text = technical_comp[0].get('name', '').strip()
     
-    cell2 = comp_table.cell(2, 1)  # Type label
-    set_cell_borders(cell2)
-    p = cell2.paragraphs[0]
-    arabic(p)
-    p.text = "الجدارات الفنية"
-    
-    # Row 4: Blank
-    cell1 = comp_table.cell(3, 0)  # Value
-    set_cell_borders(cell1)
-    cell2 = comp_table.cell(3, 1)  # Type label
-    set_cell_borders(cell2)
-    
     # Right column: Merge vertically and add "الجدارات السلوكية"
-    merge_vertically(comp_table, 2, 0, 3)
+    merge_vertically(comp_table, 2, 0, 1)
     right_cell = comp_table.cell(0, 2)
     set_cell_borders(right_cell)
     p = right_cell.paragraphs[0]
@@ -409,7 +418,7 @@ def generate_docx_report(form_data):
     
     # Section B: نموذج الوصف الفعلي
     # Top title - centered, bold 20pt
-    title = doc.add_heading("ب- نموذج الوصف الفعلي", level=1)
+    title = doc.add_heading("نموذج الوصف الفعلي - ب", level=1)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for run in title.runs:
         run.font.size = Cm(0.71)  # 20pt
@@ -418,7 +427,7 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # 1. المهام
-    header_table = create_header_band(doc, "1- المهام")
+    header_table = create_header_band(doc, "المهام - 1")
     doc.add_paragraph()  # Spacing
     
     # Tasks table
@@ -491,16 +500,15 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # 2. الجدارات السلوكية والفنية
-    header_table = create_header_band(doc, "2- الجدارات السلوكية والفنية")
+    header_table = create_header_band(doc, "الجدارات السلوكية والفنية - 2")
     doc.add_paragraph()  # Spacing
     
     # (a) Behavioral competencies table
-    doc.add_paragraph("الجدارات السلوكية").paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     behavioral_table = doc.add_table(rows=6, cols=3)  # 1 header + 5 body rows
     behavioral_table.style = 'Table Grid'
     set_col_widths(behavioral_table, [2.0, 10.0, 5.0])
     
-    # Header row
+    # Header row - RTL column order: الرقم | مؤشرات الأداء الرئيسية | طريقة القياس
     headers = ["الرقم", "الجدارات السلوكية", "مستوى الإتقان"]
     for i, header in enumerate(headers):
         cell = behavioral_table.cell(0, i)
@@ -516,14 +524,14 @@ def generate_docx_report(form_data):
     for i in range(5):
         row_idx = i + 1
         
-        # Number
+        # Number - center aligned
         cell = behavioral_table.cell(row_idx, 0)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
-        arabic(p)
+        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.text = str(i + 1)
         
-        # Competency name
+        # Competency name - right aligned
         cell = behavioral_table.cell(row_idx, 1)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
@@ -531,7 +539,7 @@ def generate_docx_report(form_data):
         if i < len(behavioral_data) and behavioral_data[i].get('name'):
             p.text = behavioral_data[i]['name'].strip()
         
-        # Level
+        # Level - right aligned
         cell = behavioral_table.cell(row_idx, 2)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
@@ -542,12 +550,11 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # (b) Technical competencies table
-    doc.add_paragraph("الجدارات الفنية").paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     technical_table = doc.add_table(rows=6, cols=3)  # 1 header + 5 body rows
     technical_table.style = 'Table Grid'
     set_col_widths(technical_table, [2.0, 10.0, 5.0])
     
-    # Header row
+    # Header row - RTL column order: الرقم | الجدارات الفنية | مستوى الإتقان
     headers = ["الرقم", "الجدارات الفنية", "مستوى الإتقان"]
     for i, header in enumerate(headers):
         cell = technical_table.cell(0, i)
@@ -563,14 +570,14 @@ def generate_docx_report(form_data):
     for i in range(5):
         row_idx = i + 1
         
-        # Number
+        # Number - center aligned
         cell = technical_table.cell(row_idx, 0)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
-        arabic(p)
+        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.text = str(i + 1)
         
-        # Competency name
+        # Competency name - right aligned
         cell = technical_table.cell(row_idx, 1)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
@@ -578,7 +585,7 @@ def generate_docx_report(form_data):
         if i < len(technical_data) and technical_data[i].get('name'):
             p.text = technical_data[i]['name'].strip()
         
-        # Level
+        # Level - right aligned
         cell = technical_table.cell(row_idx, 2)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
@@ -589,10 +596,10 @@ def generate_docx_report(form_data):
     doc.add_paragraph()  # Spacing
     
     # 3. إدارة الأداء المهني
-    header_table = create_header_band(doc, "3- إدارة الأداء المهني")
+    header_table = create_header_band(doc, "إدارة الأداء المهني - 3")
     doc.add_paragraph()  # Spacing
     
-    # KPIs table
+    # KPIs table - RTL column order: الرقم | مؤشرات الأداء الرئيسية | طريقة القياس
     kpi_table = doc.add_table(rows=5, cols=3)  # 1 header + 4 body rows
     kpi_table.style = 'Table Grid'
     set_col_widths(kpi_table, [2.0, 9.0, 6.0])
@@ -613,14 +620,14 @@ def generate_docx_report(form_data):
     for i in range(4):
         row_idx = i + 1
         
-        # Number
+        # Number - center aligned
         cell = kpi_table.cell(row_idx, 0)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
-        arabic(p)
+        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.text = str(i + 1)
         
-        # KPI metric
+        # KPI metric - right aligned
         cell = kpi_table.cell(row_idx, 1)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
@@ -628,7 +635,7 @@ def generate_docx_report(form_data):
         if i < len(kpis) and kpis[i].get('metric'):
             p.text = kpis[i]['metric'].strip()
         
-        # Measurement method
+        # Measurement method - right aligned
         cell = kpi_table.cell(row_idx, 2)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
