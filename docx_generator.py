@@ -508,8 +508,8 @@ def generate_docx_report(form_data):
     behavioral_table.style = 'Table Grid'
     set_col_widths(behavioral_table, [2.0, 10.0, 5.0])
     
-    # Header row - RTL column order: الرقم | مؤشرات الأداء الرئيسية | طريقة القياس
-    headers = ["الرقم", "الجدارات السلوكية", "مستوى الإتقان"]
+    # Header row - RTL column order: الجدارات السلوكية | مستوى الإتقان | الرقم
+    headers = ["الجدارات السلوكية", "مستوى الإتقان", "الرقم"]
     for i, header in enumerate(headers):
         cell = behavioral_table.cell(0, i)
         set_cell_borders(cell)
@@ -524,15 +524,8 @@ def generate_docx_report(form_data):
     for i in range(5):
         row_idx = i + 1
         
-        # Number - center aligned
-        cell = behavioral_table.cell(row_idx, 0)
-        set_cell_borders(cell)
-        p = cell.paragraphs[0]
-        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.text = str(i + 1)
-        
         # Competency name - right aligned
-        cell = behavioral_table.cell(row_idx, 1)
+        cell = behavioral_table.cell(row_idx, 0)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
         arabic(p)
@@ -540,12 +533,19 @@ def generate_docx_report(form_data):
             p.text = behavioral_data[i]['name'].strip()
         
         # Level - right aligned
-        cell = behavioral_table.cell(row_idx, 2)
+        cell = behavioral_table.cell(row_idx, 1)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
         arabic(p)
         if i < len(behavioral_data) and behavioral_data[i].get('level'):
             p.text = behavioral_data[i]['level'].strip()
+        
+        # Number - center aligned in rightmost column
+        cell = behavioral_table.cell(row_idx, 2)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.text = str(i + 1)
     
     doc.add_paragraph()  # Spacing
     
@@ -554,8 +554,8 @@ def generate_docx_report(form_data):
     technical_table.style = 'Table Grid'
     set_col_widths(technical_table, [2.0, 10.0, 5.0])
     
-    # Header row - RTL column order: الرقم | الجدارات الفنية | مستوى الإتقان
-    headers = ["الرقم", "الجدارات الفنية", "مستوى الإتقان"]
+    # Header row - RTL column order: الجدارات الفنية | مستوى الإتقان | الرقم
+    headers = ["الجدارات الفنية", "مستوى الإتقان", "الرقم"]
     for i, header in enumerate(headers):
         cell = technical_table.cell(0, i)
         set_cell_borders(cell)
@@ -570,15 +570,8 @@ def generate_docx_report(form_data):
     for i in range(5):
         row_idx = i + 1
         
-        # Number - center aligned
-        cell = technical_table.cell(row_idx, 0)
-        set_cell_borders(cell)
-        p = cell.paragraphs[0]
-        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.text = str(i + 1)
-        
         # Competency name - right aligned
-        cell = technical_table.cell(row_idx, 1)
+        cell = technical_table.cell(row_idx, 0)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
         arabic(p)
@@ -586,12 +579,19 @@ def generate_docx_report(form_data):
             p.text = technical_data[i]['name'].strip()
         
         # Level - right aligned
-        cell = technical_table.cell(row_idx, 2)
+        cell = technical_table.cell(row_idx, 1)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
         arabic(p)
         if i < len(technical_data) and technical_data[i].get('level'):
             p.text = technical_data[i]['level'].strip()
+        
+        # Number - center aligned in rightmost column
+        cell = technical_table.cell(row_idx, 2)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.text = str(i + 1)
     
     doc.add_paragraph()  # Spacing
     
@@ -604,8 +604,8 @@ def generate_docx_report(form_data):
     kpi_table.style = 'Table Grid'
     set_col_widths(kpi_table, [2.0, 9.0, 6.0])
     
-    # Header row
-    headers = ["الرقم", "مؤشرات الأداء الرئيسية", "طريقة القياس"]
+    # Header row - RTL column order: مؤشرات الأداء الرئيسية | طريقة القياس | الرقم
+    headers = ["مؤشرات الأداء الرئيسية", "طريقة القياس", "الرقم"]
     for i, header in enumerate(headers):
         cell = kpi_table.cell(0, i)
         set_cell_borders(cell)
@@ -620,15 +620,8 @@ def generate_docx_report(form_data):
     for i in range(4):
         row_idx = i + 1
         
-        # Number - center aligned
-        cell = kpi_table.cell(row_idx, 0)
-        set_cell_borders(cell)
-        p = cell.paragraphs[0]
-        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.text = str(i + 1)
-        
         # KPI metric - right aligned
-        cell = kpi_table.cell(row_idx, 1)
+        cell = kpi_table.cell(row_idx, 0)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
         arabic(p)
@@ -636,11 +629,18 @@ def generate_docx_report(form_data):
             p.text = kpis[i]['metric'].strip()
         
         # Measurement method - right aligned
-        cell = kpi_table.cell(row_idx, 2)
+        cell = kpi_table.cell(row_idx, 1)
         set_cell_borders(cell)
         p = cell.paragraphs[0]
         arabic(p)
         if i < len(kpis) and kpis[i].get('measure'):
             p.text = kpis[i]['measure'].strip()
+        
+        # Number - center aligned in rightmost column
+        cell = kpi_table.cell(row_idx, 2)
+        set_cell_borders(cell)
+        p = cell.paragraphs[0]
+        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.text = str(i + 1)
     
     return doc
